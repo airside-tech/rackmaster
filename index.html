@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rack Planner</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="index-page">
+    <div class="side-menu">
+        <h4>Rack Catalog</h4>
+        <div id="mainSideMenu">
+            <button id="exportCatalogButton" type="button">Export Catalog</button>
+            <input type="file" id="importCatalogInput" accept=".json" style="display: none;">
+            <button id="importCatalogButton" type="button">Import Catalog</button>
+            <a href="planner.html">Open Empty Planner</a>
+        </div>
+    </div>
+
+    <main class="index-main">
+        <section class="panel-block">
+            <h5>Create Equipment Room</h5>
+            <div id="createRoomForm" class="stack-form inline-form">
+                <input type="text" id="roomNameInput" placeholder="Equipment Room Name">
+                <input type="text" id="buildingInput" placeholder="Building">
+                <input type="text" id="floorInput" placeholder="Floor level">
+                <input type="text" id="roomNotesInput" placeholder="Notes (optional)">
+                <button id="createRoomButton" type="button">Create Room</button>
+            </div>
+        </section>
+
+        <section class="panel-block">
+            <h5>Create Rack</h5>
+            <div id="createRackForm" class="stack-form inline-form">
+                <input type="text" id="newRackName" placeholder="Rack Name">
+                <select id="rackRoomSelect"></select>
+                <input type="text" id="newRackTag" placeholder="Rack Tag (e.g. RACK-01)">
+                <input type="number" id="newRackHeight" placeholder="Height (RU)" min="1" value="42">
+                <input type="number" id="newTileX" placeholder="Rack number/Tile #X">
+                <input type="number" id="newTileY" placeholder="Row/Tile #Y">
+                <input type="number" id="newRackDepth" placeholder="Rack Depth (cm)" min="0" value="60">
+                <input type="number" id="newPowerConsumption" placeholder="Power Consumption (W)" min="0" value="0">
+                <input type="text" id="newRackNotes" placeholder="Rack notes (optional)">
+                <button class="button" id="createNewRack" type="button">Create Rack</button>
+            </div>
+            <div id="indexStatus" class="message-banner">Create an equipment room first, then add racks.</div>
+        </section>
+
+        <section class="panel-block">
+            <h5>Equipment Rooms</h5>
+            <div id="roomSections" class="room-sections"></div>
+        </section>
+    </main>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.1/jquery-ui.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
