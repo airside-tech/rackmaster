@@ -425,6 +425,7 @@ document.addEventListener("DOMContentLoaded", () => {
         depth: document.getElementById("selectedComponentDepth"),
         power: document.getElementById("selectedComponentPower"),
         typeClass: document.getElementById("selectedComponentTypeClass"),
+        color: document.getElementById("selectedComponentColor"),
         notes: document.getElementById("selectedComponentNotes")
     };
 
@@ -483,6 +484,7 @@ document.addEventListener("DOMContentLoaded", () => {
             depth: Number(component.depth) || 0,
             power: Number(component.power) || 0,
             notes: String(component.notes || "").trim(),
+            customColor: component.customColor || null,
             occupancy: {
                 front: true,
                 rear: true
@@ -864,6 +866,13 @@ document.addEventListener("DOMContentLoaded", () => {
                 componentEl.className = `rack-component ${component.typeClass || "default-component"}`;
                 componentEl.style.top = `${rackPositionToTop(component.position, component.ru)}px`;
                 componentEl.style.height = `${component.ru * rackUnitPixelHeight}px`;
+                
+                // Apply custom color if set
+                if (component.customColor) {
+                    const darkerShade = adjustBrightness(component.customColor, -20);
+                    componentEl.style.background = `linear-gradient(135deg, ${component.customColor}, ${darkerShade})`;
+                }
+                
                 componentEl.dataset.componentId = component.id;
                                 componentEl.dataset.ru = component.ru;
                 componentEl.title = component.notes
@@ -1030,6 +1039,7 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedComponentFields.depth.value = "";
             selectedComponentFields.power.value = "";
             selectedComponentFields.typeClass.value = "";
+            selectedComponentFields.color.value = "";
             selectedComponentFields.notes.value = "";
             selectedComponentInfoEl.textContent = "Click a component in the rack to view metadata.";
             return;
@@ -1041,6 +1051,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedComponentFields.depth.value = selectedComponent.depth;
         selectedComponentFields.power.value = selectedComponent.power;
         selectedComponentFields.typeClass.value = selectedComponent.typeClass;
+        selectedComponentFields.color.value = selectedComponent.customColor || "#2c9874";
         selectedComponentFields.notes.value = selectedComponent.notes || "";
         selectedComponentInfoEl.textContent = `Selected: ${selectedComponent.name} (${getComponentRangeLabel(selectedComponent)})`;
     }
@@ -1154,6 +1165,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const nextDepth = Number(selectedComponentFields.depth.value) || 0;
         const nextPower = Number(selectedComponentFields.power.value) || 0;
         const nextTypeClass = normalizeTypeClass(selectedComponentFields.typeClass.value || selectedComponent.typeClass);
+        const nextColor = selectedComponentFields.color.value || null;
         const nextNotes = String(selectedComponentFields.notes.value || "").trim();
 
         if (!nextName) {
@@ -1172,6 +1184,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedComponent.depth = nextDepth;
         selectedComponent.power = nextPower;
         selectedComponent.typeClass = nextTypeClass;
+        selectedComponent.customColor = nextColor;
         selectedComponent.notes = nextNotes;
 
         setActiveEditor("component");
@@ -1293,6 +1306,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const positionValue = document.getElementById("newComponentPosition").value;
         const depth = Number(document.getElementById("newComponentDepth").value) || 0;
         const power = Number(document.getElementById("newComponentPower").value) || 0;
+        const defaultColor = getDefaultColor();
 
         if (!name) {
             setFieldHint("newComponentName", "hintNewName", "Name is required.");
@@ -1313,7 +1327,8 @@ document.addEventListener("DOMContentLoaded", () => {
             position: positionValue ? Number(positionValue) : null,
             typeClass: "custom-component",
             depth,
-            power
+            power,
+            customColor: defaultColor.color
         });
 
         if (placed) {
@@ -1465,8 +1480,116 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
+    const colorStorageKey = "rackplanner.default-color.v1";
+
+    const colorPresets = [
+        { name: "Router", gradient: "linear-gradient(135deg, #15616d, #1d8a9b)", color: "#1d8a9b" },
+        { name: "Switch", gradient: "linear-gradient(135deg, #355c7d, #4d7ea8)", color: "#4d7ea8" },
+        { name: "Firewall", gradient: "linear-gradient(135deg, #8e3b46, #b6505d)", color: "#b6505d" },
+        { name: "Load Balancer", gradient: "linear-gradient(135deg, #5d4e75, #7e68a3)", color: "#7e68a3" },
+        { name: "Access Point", gradient: "linear-gradient(135deg, #4d6d3b, #678d52)", color: "#678d52" },
+        { name: "NAS", gradient: "linear-gradient(135deg, #7d5533, #ab7344)", color: "#ab7344" },
+        { name: "SAN", gradient: "linear-gradient(135deg, #6b3f2d, #8b5a42)", color: "#8b5a42" },
+        { name: "Web Server", gradient: "linear-gradient(135deg, #2f4858, #44708b)", color: "#44708b" },
+        { name: "Database Server", gradient: "linear-gradient(135deg, #5f0f40, #8b1e5c)", color: "#8b1e5c" },
+        { name: "App Server", gradient: "linear-gradient(135deg, #414770, #6169a8)", color: "#6169a8" },
+        { name: "UPS", gradient: "linear-gradient(135deg, #4d5d53, #708577)", color: "#708577" },
+        { name: "PDU", gradient: "linear-gradient(135deg, #6f4e37, #9a6f53)", color: "#9a6f53" },
+        { name: "Accessories", gradient: "linear-gradient(135deg, #5c6770, #7d8994)", color: "#7d8994" },
+        { name: "Custom", gradient: "linear-gradient(135deg, #1f6a52, #2c9874)", color: "#2c9874" }
+    ];
+
+    function getDefaultColor() {
+        try {
+            const stored = localStorage.getItem(colorStorageKey);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                return parsed;
+            }
+        } catch (_error) {
+            // Fall through to default
+        }
+        return { color: "#2c9874", gradient: "linear-gradient(135deg, #1f6a52, #2c9874)" };
+    }
+
+    function setDefaultColor(color, gradient) {
+        localStorage.setItem(colorStorageKey, JSON.stringify({ color, gradient }));
+    }
+
+    function initializeColorPicker() {
+        const colorPresetGrid = document.getElementById("colorPresetGrid");
+        const customColorInput = document.getElementById("customColorInput");
+        const selectedColorPreview = document.getElementById("selectedColorPreview");
+
+        if (!colorPresetGrid || !customColorInput || !selectedColorPreview) {
+            return;
+        }
+
+        const currentColor = getDefaultColor();
+        customColorInput.value = currentColor.color;
+        selectedColorPreview.style.background = currentColor.gradient;
+
+        // Create preset buttons
+        colorPresets.forEach((preset, index) => {
+            const button = document.createElement("button");
+            button.className = "color-preset";
+            button.type = "button";
+            button.style.background = preset.gradient;
+            button.title = preset.name;
+            button.setAttribute("aria-label", `Select ${preset.name} color`);
+
+            if (preset.color === currentColor.color) {
+                button.classList.add("is-selected");
+            }
+
+            button.addEventListener("click", () => {
+                // Remove previous selection
+                colorPresetGrid.querySelectorAll(".color-preset.is-selected").forEach(el => {
+                    el.classList.remove("is-selected");
+                });
+                button.classList.add("is-selected");
+
+                setDefaultColor(preset.color, preset.gradient);
+                customColorInput.value = preset.color;
+                selectedColorPreview.style.background = preset.gradient;
+            });
+
+            colorPresetGrid.appendChild(button);
+        });
+
+        // Custom color input
+        customColorInput.addEventListener("change", (e) => {
+            const color = e.target.value;
+            const gradient = `linear-gradient(135deg, ${color}, ${adjustBrightness(color, -20)})`;
+
+            // Remove any preset selection
+            colorPresetGrid.querySelectorAll(".color-preset.is-selected").forEach(el => {
+                el.classList.remove("is-selected");
+            });
+
+            setDefaultColor(color, gradient);
+            selectedColorPreview.style.background = gradient;
+        });
+
+        customColorInput.addEventListener("input", (e) => {
+            const color = e.target.value;
+            const gradient = `linear-gradient(135deg, ${color}, ${adjustBrightness(color, -20)})`;
+            selectedColorPreview.style.background = gradient;
+        });
+    }
+
+    function adjustBrightness(color, percent) {
+        const num = parseInt(color.replace("#", ""), 16);
+        const amt = Math.round(2.55 * percent);
+        const R = Math.max(0, Math.min((num >> 16) + amt, 255));
+        const G = Math.max(0, Math.min(((num >> 8) & 0x00FF) + amt, 255));
+        const B = Math.max(0, Math.min((num & 0x0000FF) + amt, 255));
+        return `#${(0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1)}`;
+    }
+
     bindEvents();
     setActiveEditor("rack");
+    initializeColorPicker();
     renderAll();
     loadRackFromCatalog();
 });

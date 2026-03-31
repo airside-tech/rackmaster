@@ -664,6 +664,69 @@ input.is-invalid {
 .custom-component { background: linear-gradient(135deg, #1f6a52, #2c9874); }
 .default-component { background: linear-gradient(135deg, #666, #7c7c7c); }
 
+/* Color Picker Styles */
+.color-picker-section {
+    display: grid;
+    gap: 12px;
+}
+
+.color-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+
+.color-preset {
+    width: 100%;
+    aspect-ratio: 1;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-preset:hover {
+    transform: scale(1.05);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+.color-preset.is-selected {
+    border-color: #fff;
+    box-shadow: 0 0 0 2px var(--accent), inset 0 0 0 1px rgba(255, 255, 255, 0.3);
+}
+
+.color-picker-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.color-picker-input-group label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.color-picker-input-group input[type="color"] {
+    width: 100%;
+    height: 40px;
+    padding: 4px;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.selected-color-preview {
+    width: 100%;
+    height: 50px;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: background 0.2s ease;
+}
+
 @media (max-width: 1024px) {
     .side-menu {
         position: static;

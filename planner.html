@@ -13,6 +13,17 @@
             <div id="accordion"></div>
         </div>
         <div class="panel-block">
+            <h5>Default Component Color</h5>
+            <div id="colorPicker" class="color-picker-section">
+                <div class="color-preset-grid" id="colorPresetGrid"></div>
+                <div class="color-picker-input-group">
+                    <label for="customColorInput">Custom Color:</label>
+                    <input type="color" id="customColorInput" placeholder="Pick a color">
+                </div>
+                <div class="selected-color-preview" id="selectedColorPreview" style="background: linear-gradient(135deg, #1f6a52, #2c9874);"></div>
+            </div>
+        </div>
+        <div class="panel-block">
             <h5>Add Library Component</h5>
             <div id="libraryForm" class="stack-form">
                 <select id="libraryCategorySelect"></select>
@@ -143,6 +154,10 @@
                 <div class="field-group">
                     <label class="prop-label">Style Class</label>
                     <input type="text" id="selectedComponentTypeClass" placeholder="—">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Component Color</label>
+                    <input type="color" id="selectedComponentColor" placeholder="—">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Notes</label>
