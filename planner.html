@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rack Planner</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="planner-page">
+    <div class="side-menu">
+        <a class="nav-link-back" href="index.html">Back to Rack List</a>
+        <h4>Component Library</h4>
+        <div class="panel-block">
+            <div id="accordion"></div>
+        </div>
+        <div class="panel-block">
+            <h5>Add Library Component</h5>
+            <div id="libraryForm" class="stack-form">
+                <select id="libraryCategorySelect"></select>
+                <input type="text" id="libraryNewCategoryName" placeholder="New Category (only used when 'New Category...' is selected)">
+                <span class="field-hint" id="hintLibraryCategory"></span>
+                <input type="text" id="libraryComponentName" placeholder="Component Name">
+                <span class="field-hint" id="hintLibraryName"></span>
+                <input type="number" id="libraryComponentHeight" placeholder="Height (RU)" min="1" value="1">
+                <input type="text" id="libraryComponentClass" placeholder="Style Class">
+                <input type="number" id="libraryComponentDepth" placeholder="Default Depth (cm)" min="0" value="60">
+                <input type="number" id="libraryComponentPower" placeholder="Default Power (W)" min="0" value="0">
+                <button id="addLibraryComponent">Add to Library</button>
+            </div>
+        </div>
+        <div class="panel-block">
+            <h5>Library File</h5>
+            <button id="saveLibraryButton">Save Library</button>
+            <input type="file" id="loadLibraryInput" accept=".json" style="display: none;">
+            <button id="loadLibraryButton">Load Library</button>
+        </div>
+        <div class="panel-block">
+            <h5>Rack File</h5>
+            <button id="saveRackButton">Save Rack</button>
+            <input type="file" id="loadRackInput" accept=".json" style="display: none;">
+            <button id="loadRackButton">Load Rack</button>
+        </div>
+    </div>
+    <main class="rack-planner-container">
+        <section class="planner-toolbar panel-block">
+            <div id="rackIdentityBar" class="rack-identity" title="Click to edit rack properties">
+                <div id="rackNameTag" class="rack-name-tag">Main Rack [RACK-01]</div>
+                <div id="viewModeBadge" class="view-mode-badge">FRONT SIDE</div>
+            </div>
+            <div id="controls" class="toolbar-row">
+                <button id="increaseHeight">Increase Height</button>
+                <button id="decreaseHeight">Decrease Height</button>
+                <button id="toggleVacantSlots">Hide Vacant Slots</button>
+                <button id="toggleViewButton">Switch to Rear View</button>
+            </div>
+            <div id="rackInfo"></div>
+        </section>
+
+        <section class="rack-stage panel-block">
+            <div class="rack-frame">
+                <div id="rack"></div>
+            </div>
+            <div id="viewLegend" class="view-legend"></div>
+        </section>
+
+        <section class="panel-block">
+            <h5>Create Custom Component</h5>
+            <div id="createComponentForm" class="stack-form inline-form">
+                <div class="field-group">
+                    <input type="text" id="newComponentName" placeholder="Component Name">
+                    <span class="field-hint" id="hintNewName"></span>
+                </div>
+                <input type="number" id="newComponentHeight" placeholder="Height (RU)" min="1" value="1">
+                <div class="field-group">
+                    <input type="number" id="newComponentPosition" min="1" max="42" placeholder="Start U (optional)">
+                    <span class="field-hint" id="hintNewPosition"></span>
+                </div>
+                <input type="number" id="newComponentDepth" placeholder="Depth (cm)" min="0" value="60">
+                <input type="number" id="newComponentPower" placeholder="Power (W)" min="0" value="0">
+                <button id="createNewComponent">Create Component</button>
+            </div>
+        </section>
+
+    </main>
+
+    <aside class="properties-panel">
+        <h4>Properties</h4>
+        <div class="panel-block" id="rackPropertiesPanel">
+            <h5>Rack Properties</h5>
+            <div id="rackPropertiesInfo" class="message-banner">Click rack header to edit rack metadata.</div>
+            <div id="rackPropertiesForm" class="stack-form">
+                <div class="field-group">
+                    <label class="prop-label">Rack Name</label>
+                    <input type="text" id="rackNameInput" placeholder="Rack name">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Tag</label>
+                    <input type="text" id="rackTagInput" placeholder="RACK-01">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Room / Site</label>
+                    <input type="text" id="rackRoomInput" placeholder="Room A / Datacenter 1">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Owner / Team</label>
+                    <input type="text" id="rackOwnerInput" placeholder="Operations Team">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Notes</label>
+                    <textarea id="rackNotesInput" placeholder="Free notes for this rack"></textarea>
+                </div>
+            </div>
+            <div class="selection-actions">
+                <button id="saveRackProperties" type="button">Save Rack Properties</button>
+            </div>
+        </div>
+
+        <div class="panel-block">
+            <h5>Selected Component</h5>
+            <div id="selectedComponentInfo" class="message-banner">Select a component in the rack to edit.</div>
+            <div id="selectedComponentForm" class="stack-form">
+                <div class="field-group">
+                    <label class="prop-label">Name</label>
+                    <input type="text" id="selectedComponentName" placeholder="—">
+                    <span class="field-hint" id="hintSelectedName"></span>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Height (RU)</label>
+                    <input type="number" id="selectedComponentHeight" placeholder="—" min="1">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Start U</label>
+                    <input type="number" id="selectedComponentPosition" placeholder="—" min="1">
+                    <span class="field-hint" id="hintSelectedPosition"></span>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Depth (cm)</label>
+                    <input type="number" id="selectedComponentDepth" placeholder="—" min="0">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Power (W)</label>
+                    <input type="number" id="selectedComponentPower" placeholder="—" min="0">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Style Class</label>
+                    <input type="text" id="selectedComponentTypeClass" placeholder="—">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Notes</label>
+                    <textarea id="selectedComponentNotes" placeholder="Free notes for this component"></textarea>
+                </div>
+            </div>
+            <div class="selection-actions">
+                <button id="saveSelectedComponent" type="button">Save Changes</button>
+                <button id="deleteSelectedComponent" type="button">Delete</button>
+                <button id="clearSelection" type="button">Clear</button>
+            </div>
+        </div>
+    </aside>
+
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
