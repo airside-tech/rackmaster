@@ -115,7 +115,7 @@
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Minimum Depth Clearance (cm)</label>
-                    <input type="number" id="rackClearanceInput" placeholder="e.g. 5" min="0">
+                    <input type="number" id="rackClearanceInput" placeholder="e.g. 20 [cm]" min="20">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Notes</label>
@@ -154,8 +154,8 @@
                     <input type="number" id="selectedComponentPower" placeholder="—" min="0">
                 </div>
                 <div class="field-group">
-                    <label class="prop-label">Style Class</label>
-                    <input type="text" id="selectedComponentTypeClass" placeholder="—">
+                    <label class="prop-label">Manufacturer / Description</label>
+                    <input type="text" id="selectedComponentDescription" placeholder="e.g. Cisco / Access Switch">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Standard Color</label>
@@ -179,6 +179,6 @@
     </aside>
 
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
-    <script src="script.js"></script>
+    <script type="module" src="script.js"></script>
 </body>
 </html>

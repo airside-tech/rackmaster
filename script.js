@@ -1,29 +1,17 @@
+import { openTextFileWithPicker, readTextFromInput, saveTextFile } from "./js/modules/fileIO.js";
+import { readCatalog, writeCatalog } from "./js/modules/storage.js";
+import { asNumber, createCatalogId, createId, normalizeTypeClass } from "./js/modules/typeUtils.js";
+import {
+    catalogToCsv,
+    csvToCatalog,
+    csvToLibraryPayload,
+    csvToRackPayload,
+    libraryPayloadToCsv,
+    rackPayloadToCsv
+} from "./js/modules/catalogFormat.js";
+
 document.addEventListener("DOMContentLoaded", () => {
-    const catalogStorageKey = "rackplanner.catalog.v1";
     const isIndexPage = document.body.classList.contains("index-page");
-
-    function createCatalogId(prefix) {
-        return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-    }
-
-    function readCatalog() {
-        try {
-            const rawCatalog = localStorage.getItem(catalogStorageKey);
-            if (!rawCatalog) {
-                return { rooms: [] };
-            }
-            const parsedCatalog = JSON.parse(rawCatalog);
-            return {
-                rooms: Array.isArray(parsedCatalog.rooms) ? parsedCatalog.rooms : []
-            };
-        } catch (_error) {
-            return { rooms: [] };
-        }
-    }
-
-    function writeCatalog(catalog) {
-        localStorage.setItem(catalogStorageKey, JSON.stringify(catalog));
-    }
 
     function chooseDataFormat(actionLabel) {
         return new Promise(resolve => {
@@ -94,182 +82,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function csvEscape(value) {
-        const text = value == null ? "" : String(value);
-        if (!/[",\n\r]/.test(text)) {
-            return text;
-        }
-        return `"${text.replace(/"/g, '""')}"`;
-    }
-
-    function toCsv(headers, rows) {
-        const headerLine = headers.map(csvEscape).join(",");
-        const bodyLines = rows.map(row => headers.map(header => csvEscape(row[header])).join(","));
-        return [headerLine, ...bodyLines].join("\n");
-    }
-
-    function parseCsv(text) {
-        const rows = [];
-        let row = [];
-        let value = "";
-        let index = 0;
-        let insideQuotes = false;
-
-        while (index < text.length) {
-            const char = text[index];
-
-            if (insideQuotes) {
-                if (char === '"') {
-                    if (text[index + 1] === '"') {
-                        value += '"';
-                        index += 1;
-                    } else {
-                        insideQuotes = false;
-                    }
-                } else {
-                    value += char;
-                }
-                index += 1;
-                continue;
-            }
-
-            if (char === '"') {
-                insideQuotes = true;
-                index += 1;
-                continue;
-            }
-
-            if (char === ",") {
-                row.push(value);
-                value = "";
-                index += 1;
-                continue;
-            }
-
-            if (char === "\n") {
-                row.push(value);
-                rows.push(row);
-                row = [];
-                value = "";
-                index += 1;
-                continue;
-            }
-
-            if (char === "\r") {
-                index += 1;
-                continue;
-            }
-
-            value += char;
-            index += 1;
-        }
-
-        if (value.length > 0 || row.length > 0) {
-            row.push(value);
-            rows.push(row);
-        }
-
-        if (rows.length === 0) {
-            return [];
-        }
-
-        const [headers, ...dataRows] = rows;
-        return dataRows
-            .filter(dataRow => dataRow.some(cell => String(cell || "").trim() !== ""))
-            .map(dataRow => {
-                const result = {};
-                headers.forEach((header, idx) => {
-                    result[header] = dataRow[idx] ?? "";
-                });
-                return result;
-            });
-    }
-
-    function asNumber(value, fallback = 0) {
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : fallback;
-    }
-
-    function asOptionalNumber(value) {
-        if (value == null || String(value).trim() === "") {
-            return null;
-        }
-        const parsed = Number(value);
-        return Number.isFinite(parsed) ? parsed : null;
-    }
-
-    async function saveTextFile(filename, textContent, mimeType, extensionWithDot) {
-        if (window.showSaveFilePicker) {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: filename,
-                    types: [{
-                        description: extensionWithDot === ".csv" ? "CSV files" : "JSON files",
-                        accept: { [mimeType]: [extensionWithDot] }
-                    }]
-                });
-                const writable = await handle.createWritable();
-                await writable.write(textContent);
-                await writable.close();
-                return true;
-            } catch (error) {
-                if (error && error.name === "AbortError") {
-                    return false;
-                }
-            }
-        }
-
-        const blob = new Blob([textContent], { type: mimeType });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = filename;
-        anchor.click();
-        URL.revokeObjectURL(url);
-        return true;
-    }
-
-    function readTextFromInput(fileInput) {
-        return new Promise((resolve, reject) => {
-            const file = fileInput.files && fileInput.files[0];
-            if (!file) {
-                reject(new Error("No file selected."));
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = event => resolve(String(event.target?.result || ""));
-            reader.onerror = () => reject(new Error("Could not read file."));
-            reader.readAsText(file);
-        });
-    }
-
-    async function openTextFileWithPicker(format) {
-        if (!window.showOpenFilePicker) {
-            return null;
-        }
-
-        const isCsv = format === "csv";
-        try {
-            const [handle] = await window.showOpenFilePicker({
-                multiple: false,
-                types: [{
-                    description: isCsv ? "CSV files" : "JSON files",
-                    accept: {
-                        [isCsv ? "text/csv" : "application/json"]: [isCsv ? ".csv" : ".json"]
-                    }
-                }]
-            });
-            const file = await handle.getFile();
-            return await file.text();
-        } catch (error) {
-            if (error && error.name === "AbortError") {
-                return "";
-            }
-            throw error;
-        }
-    }
-
     function initIndexPage() {
         const roomNameInput = document.getElementById("roomNameInput");
         const buildingInput = document.getElementById("buildingInput");
@@ -298,129 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         let catalog = readCatalog();
-
-        const catalogCsvHeaders = [
-            "rowType",
-            "roomId",
-            "roomName",
-            "building",
-            "floor",
-            "roomNotes",
-            "rackId",
-            "rackName",
-            "rackTag",
-            "rackHeightRU",
-            "tileX",
-            "tileY",
-            "depth",
-            "power",
-            "rackNotes",
-            "updatedAt",
-            "plannerStateJson"
-        ];
-
-        function catalogToCsv(catalogPayload) {
-            const rows = [];
-            const rooms = Array.isArray(catalogPayload.rooms) ? catalogPayload.rooms : [];
-
-            rooms.forEach(room => {
-                rows.push({
-                    rowType: "room",
-                    roomId: room.id || createCatalogId("room"),
-                    roomName: room.name || "",
-                    building: room.building || "",
-                    floor: room.floor || "",
-                    roomNotes: room.notes || "",
-                    rackId: "",
-                    rackName: "",
-                    rackTag: "",
-                    rackHeightRU: "",
-                    tileX: "",
-                    tileY: "",
-                    depth: "",
-                    power: "",
-                    rackNotes: "",
-                    updatedAt: "",
-                    plannerStateJson: ""
-                });
-
-                (Array.isArray(room.racks) ? room.racks : []).forEach(rack => {
-                    rows.push({
-                        rowType: "rack",
-                        roomId: room.id || "",
-                        roomName: room.name || "",
-                        building: room.building || "",
-                        floor: room.floor || "",
-                        roomNotes: room.notes || "",
-                        rackId: rack.id || createCatalogId("rack"),
-                        rackName: rack.name || "",
-                        rackTag: rack.tag || "",
-                        rackHeightRU: asNumber(rack.heightRU, 42),
-                        tileX: rack.tileX == null ? "" : rack.tileX,
-                        tileY: rack.tileY == null ? "" : rack.tileY,
-                        depth: asNumber(rack.depth, 0),
-                        power: asNumber(rack.power, 0),
-                        rackNotes: rack.notes || "",
-                        updatedAt: rack.updatedAt || "",
-                        plannerStateJson: rack.plannerState ? JSON.stringify(rack.plannerState) : ""
-                    });
-                });
-            });
-
-            return toCsv(catalogCsvHeaders, rows);
-        }
-
-        function csvToCatalog(csvText) {
-            const records = parseCsv(csvText);
-            const roomMap = new Map();
-
-            records.forEach(record => {
-                const rowType = String(record.rowType || "").trim().toLowerCase();
-                if (rowType !== "room" && rowType !== "rack") {
-                    return;
-                }
-
-                const roomId = String(record.roomId || "").trim() || createCatalogId("room");
-                if (!roomMap.has(roomId)) {
-                    roomMap.set(roomId, {
-                        id: roomId,
-                        name: String(record.roomName || "").trim() || "Unnamed Room",
-                        building: String(record.building || "").trim(),
-                        floor: String(record.floor || "").trim(),
-                        notes: String(record.roomNotes || "").trim(),
-                        racks: []
-                    });
-                }
-
-                if (rowType === "rack") {
-                    const room = roomMap.get(roomId);
-                    let plannerState = null;
-                    if (String(record.plannerStateJson || "").trim()) {
-                        try {
-                            plannerState = JSON.parse(record.plannerStateJson);
-                        } catch (_error) {
-                            plannerState = null;
-                        }
-                    }
-
-                    room.racks.push({
-                        id: String(record.rackId || "").trim() || createCatalogId("rack"),
-                        name: String(record.rackName || "").trim() || "Unnamed Rack",
-                        tag: String(record.rackTag || "").trim() || "RACK",
-                        heightRU: asNumber(record.rackHeightRU, 42),
-                        tileX: asOptionalNumber(record.tileX),
-                        tileY: asOptionalNumber(record.tileY),
-                        depth: asNumber(record.depth, 0),
-                        power: asNumber(record.power, 0),
-                        notes: String(record.rackNotes || "").trim(),
-                        plannerState,
-                        updatedAt: String(record.updatedAt || "").trim() || new Date().toISOString()
-                    });
-                }
-            });
-
-            return { rooms: Array.from(roomMap.values()) };
-        }
 
         function setStatus(message) {
             statusEl.textContent = message;
@@ -852,7 +541,7 @@ document.addEventListener("DOMContentLoaded", () => {
         position: document.getElementById("selectedComponentPosition"),
         depth: document.getElementById("selectedComponentDepth"),
         power: document.getElementById("selectedComponentPower"),
-        typeClass: document.getElementById("selectedComponentTypeClass"),
+        description: document.getElementById("selectedComponentDescription"),
         color: document.getElementById("selectedComponentColor"),
         notes: document.getElementById("selectedComponentNotes")
     };
@@ -881,22 +570,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 name: item.name,
                 ru: item.ru,
                 typeClass: normalizeTypeClass(item.typeClass || item.name),
+                description: item.description || "",
                 defaultDepth: item.defaultDepth || 0,
                 defaultPower: item.defaultPower || 0
             }))
         }));
-    }
-
-    function createId(prefix) {
-        return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-    }
-
-    function normalizeTypeClass(value) {
-        return String(value || "default-component")
-            .trim()
-            .toLowerCase()
-            .replace(/[^a-z0-9]+/g, "-")
-            .replace(/^-+|-+$/g, "") || "default-component";
     }
 
     function getComponentDisplayColor(component) {
@@ -1006,6 +684,7 @@ document.addEventListener("DOMContentLoaded", () => {
             ru: Number(component.ru) || 1,
             position: Number(component.position) || 1,
             typeClass: normalizeTypeClass(component.typeClass),
+            description: String(component.description || "").trim(),
             depth: Number(component.depth) || 0,
             power: Number(component.power) || 0,
             notes: String(component.notes || "").trim(),
@@ -1188,194 +867,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         return null;
-    }
-
-    const rackCsvHeaders = [
-        "rowType",
-        "rackHeightRU",
-        "currentView",
-        "showVacantSlots",
-        "rackName",
-        "rackTag",
-        "rackRoom",
-        "rackOwner",
-        "rackDepthCm",
-        "rackMinDepthClearanceCm",
-        "rackNotes",
-        "rackTotalCalculatedConsumptionW",
-        "componentId",
-        "componentName",
-        "componentRU",
-        "componentPosition",
-        "typeClass",
-        "depth",
-        "power",
-        "notes",
-        "customColor"
-    ];
-
-    const libraryCsvHeaders = [
-        "rowType",
-        "categoryName",
-        "itemName",
-        "ru",
-        "typeClass",
-        "defaultDepth",
-        "defaultPower"
-    ];
-
-    function rackPayloadToCsv(payload) {
-        const rows = [
-            {
-                rowType: "meta",
-                rackHeightRU: asNumber(payload.rackHeightRU, defaultRackHeightRU),
-                currentView: payload.currentView === "rear" ? "rear" : "front",
-                showVacantSlots: payload.showVacantSlots !== false,
-                rackName: payload.rackProfile?.name || "Main Rack",
-                rackTag: payload.rackProfile?.tag || "RACK-01",
-                rackRoom: payload.rackProfile?.room || "",
-                rackOwner: payload.rackProfile?.owner || "",
-                rackDepthCm: asNumber(payload.rackProfile?.rackDepthCm, 0),
-                rackMinDepthClearanceCm: asNumber(payload.rackProfile?.minDepthClearanceCm, 0),
-                rackNotes: payload.rackProfile?.notes || "",
-                rackTotalCalculatedConsumptionW: asNumber(payload.rackProfile?.totalCalculatedConsumptionW, 0),
-                componentId: "",
-                componentName: "",
-                componentRU: "",
-                componentPosition: "",
-                typeClass: "",
-                depth: "",
-                power: "",
-                notes: "",
-                customColor: ""
-            }
-        ];
-
-        (Array.isArray(payload.components) ? payload.components : []).forEach(component => {
-            rows.push({
-                rowType: "component",
-                rackHeightRU: "",
-                currentView: "",
-                showVacantSlots: "",
-                rackName: "",
-                rackTag: "",
-                rackRoom: "",
-                rackOwner: "",
-                rackDepthCm: "",
-                rackMinDepthClearanceCm: "",
-                rackNotes: "",
-                rackTotalCalculatedConsumptionW: "",
-                componentId: component.id || createId("component"),
-                componentName: component.name || "",
-                componentRU: asNumber(component.ru, 1),
-                componentPosition: asNumber(component.position, 1),
-                typeClass: component.typeClass || "default-component",
-                depth: asNumber(component.depth, 0),
-                power: asNumber(component.power, 0),
-                notes: component.notes || "",
-                customColor: component.customColor || ""
-            });
-        });
-
-        return toCsv(rackCsvHeaders, rows);
-    }
-
-    function csvToRackPayload(csvText) {
-        const records = parseCsv(csvText);
-        const meta = records.find(record => String(record.rowType || "").trim().toLowerCase() === "meta") || {};
-        const components = records
-            .filter(record => String(record.rowType || "").trim().toLowerCase() === "component")
-            .map(record => ({
-                id: String(record.componentId || "").trim() || createId("component"),
-                name: String(record.componentName || "").trim(),
-                ru: asNumber(record.componentRU, 1),
-                position: asNumber(record.componentPosition, 1),
-                typeClass: String(record.typeClass || "default-component").trim(),
-                depth: asNumber(record.depth, 0),
-                power: asNumber(record.power, 0),
-                notes: String(record.notes || "").trim(),
-                customColor: String(record.customColor || "").trim() || null
-            }));
-
-        return {
-            rackHeightRU: asNumber(meta.rackHeightRU, defaultRackHeightRU),
-            currentView: String(meta.currentView || "front").trim() === "rear" ? "rear" : "front",
-            showVacantSlots: String(meta.showVacantSlots || "true").trim().toLowerCase() !== "false",
-            rackProfile: {
-                name: String(meta.rackName || "Main Rack").trim() || "Main Rack",
-                tag: String(meta.rackTag || "RACK-01").trim() || "RACK-01",
-                room: String(meta.rackRoom || "").trim(),
-                owner: String(meta.rackOwner || "").trim(),
-                rackDepthCm: asNumber(meta.rackDepthCm, 0),
-                minDepthClearanceCm: asNumber(meta.rackMinDepthClearanceCm, 0),
-                notes: String(meta.rackNotes || "").trim(),
-                totalCalculatedConsumptionW: asNumber(meta.rackTotalCalculatedConsumptionW, 0)
-            },
-            components
-        };
-    }
-
-    function libraryPayloadToCsv(payload) {
-        const rows = [];
-        (Array.isArray(payload.categories) ? payload.categories : []).forEach(category => {
-            rows.push({
-                rowType: "category",
-                categoryName: category.name || "",
-                itemName: "",
-                ru: "",
-                typeClass: "",
-                defaultDepth: "",
-                defaultPower: ""
-            });
-
-            (Array.isArray(category.items) ? category.items : []).forEach(item => {
-                rows.push({
-                    rowType: "item",
-                    categoryName: category.name || "",
-                    itemName: item.name || "",
-                    ru: asNumber(item.ru, 1),
-                    typeClass: item.typeClass || "default-component",
-                    defaultDepth: asNumber(item.defaultDepth, 0),
-                    defaultPower: asNumber(item.defaultPower, 0)
-                });
-            });
-        });
-
-        return toCsv(libraryCsvHeaders, rows);
-    }
-
-    function csvToLibraryPayload(csvText) {
-        const records = parseCsv(csvText);
-        const categoriesByName = new Map();
-
-        records.forEach(record => {
-            const rowType = String(record.rowType || "").trim().toLowerCase();
-            const categoryName = String(record.categoryName || "").trim();
-            if (!categoryName) {
-                return;
-            }
-
-            if (!categoriesByName.has(categoryName)) {
-                categoriesByName.set(categoryName, {
-                    name: categoryName,
-                    items: []
-                });
-            }
-
-            if (rowType === "item") {
-                categoriesByName.get(categoryName).items.push({
-                    name: String(record.itemName || "").trim(),
-                    ru: asNumber(record.ru, 1),
-                    typeClass: String(record.typeClass || "default-component").trim() || "default-component",
-                    defaultDepth: asNumber(record.defaultDepth, 0),
-                    defaultPower: asNumber(record.defaultPower, 0)
-                });
-            }
-        });
-
-        return {
-            categories: Array.from(categoriesByName.values())
-        };
     }
 
     function setNotice(message) {
@@ -1931,7 +1422,7 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedComponentFields.position.value = "";
             selectedComponentFields.depth.value = "";
             selectedComponentFields.power.value = "";
-            selectedComponentFields.typeClass.value = "";
+            selectedComponentFields.description.value = "";
             selectedComponentFields.color.value = "";
             updateSelectedComponentPaletteSelection("");
             selectedComponentFields.notes.value = "";
@@ -1944,7 +1435,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedComponentFields.position.value = selectedComponent.position;
         selectedComponentFields.depth.value = selectedComponent.depth;
         selectedComponentFields.power.value = selectedComponent.power;
-        selectedComponentFields.typeClass.value = selectedComponent.typeClass;
+        selectedComponentFields.description.value = selectedComponent.description || "";
         selectedComponentFields.color.value = getComponentDisplayColor(selectedComponent);
         updateSelectedComponentPaletteSelection(selectedComponentFields.color.value);
         selectedComponentFields.notes.value = selectedComponent.notes || "";
@@ -2060,7 +1551,8 @@ document.addEventListener("DOMContentLoaded", () => {
         const nextPosition = Number(selectedComponentFields.position.value) || 1;
         const nextDepth = Number(selectedComponentFields.depth.value) || 0;
         const nextPower = Number(selectedComponentFields.power.value) || 0;
-        const nextTypeClass = normalizeTypeClass(selectedComponentFields.typeClass.value || selectedComponent.typeClass);
+        const nextDescription = selectedComponentFields.description.value.trim();
+        const nextTypeClass = normalizeTypeClass(nextDescription || selectedComponent.typeClass);
         const nextColor = selectedComponentFields.color.value || null;
         const nextNotes = String(selectedComponentFields.notes.value || "").trim();
 
@@ -2079,6 +1571,7 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedComponent.position = nextPosition;
         selectedComponent.depth = nextDepth;
         selectedComponent.power = nextPower;
+        selectedComponent.description = nextDescription;
         selectedComponent.typeClass = nextTypeClass;
         selectedComponent.customColor = nextColor;
         selectedComponent.notes = nextNotes;
@@ -2238,6 +1731,7 @@ document.addEventListener("DOMContentLoaded", () => {
             position,
             face: state.currentView,
             typeClass: draggedComponent.typeClass,
+            description: draggedComponent.description || "",
             depth: Number(draggedComponent.defaultDepth) || 0,
             power: Number(draggedComponent.defaultPower) || 0
         });
@@ -2267,7 +1761,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const componentName = document.getElementById("libraryComponentName").value.trim();
         const ru = Number(document.getElementById("libraryComponentHeight").value) || 1;
-        const typeClass = normalizeTypeClass(document.getElementById("libraryComponentClass").value || componentName);
+        const description = document.getElementById("libraryComponentClass").value.trim();
+        const typeClass = normalizeTypeClass(description || componentName);
         const defaultDepth = Number(document.getElementById("libraryComponentDepth").value) || 0;
         const defaultPower = Number(document.getElementById("libraryComponentPower").value) || 0;
 
@@ -2298,6 +1793,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: componentName,
             ru,
             typeClass,
+            description,
             defaultDepth,
             defaultPower
         });
