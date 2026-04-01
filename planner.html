@@ -83,8 +83,17 @@
 
         <section class="rack-stage panel-block">
             <h5 id="rackStageHeading" class="rack-stage-heading">Active Side: Front</h5>
-            <div class="rack-frame">
-                <div id="rack"></div>
+            <div class="rack-views-row">
+                <div class="rack-frame">
+                    <div id="rack"></div>
+                </div>
+                <div class="rack-side-view-wrapper">
+                    <div class="rack-side-face-labels">
+                        <span class="rack-side-face-label rack-side-face-label--front">FRONT</span>
+                        <span class="rack-side-face-label rack-side-face-label--rear">REAR</span>
+                    </div>
+                    <div id="rackSideView" class="rack-side-view"></div>
+                </div>
             </div>
             <div id="viewLegend" class="view-legend"></div>
         </section>
@@ -104,6 +113,14 @@
                 <div class="field-group">
                     <label class="prop-label">Rack Tag</label>
                     <input type="text" id="rackTagInput" placeholder="RACK-01">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Height (RU)</label>
+                    <input type="number" id="rackHeightInput" placeholder="e.g. 42" min="1">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Depth (cm)</label>
+                    <input type="number" id="rackDepthInput" placeholder="e.g. 100" min="0">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Room / Site</label>

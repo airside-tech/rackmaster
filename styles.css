@@ -358,6 +358,7 @@ textarea:focus {
     display: grid;
     gap: 12px;
     justify-items: center;
+    overflow-x: auto;
 }
 
 .rack-stage-heading {
@@ -369,7 +370,11 @@ textarea:focus {
 }
 
 .rack-frame {
-    width: min(100%, 380px);
+    width: 380px;
+    min-width: 380px;
+    max-width: 380px;
+    flex: 0 0 380px;
+    flex-shrink: 0;
     padding: 18px;
     border: 2px solid #6d726f;
     border-radius: 24px;
@@ -985,4 +990,146 @@ input.is-invalid {
         flex-direction: column;
         align-items: flex-start;
     }
+
+    .rack-views-row {
+        flex-direction: column;
+        align-items: center;
+    }
+}
+
+/* ── Side View ──────────────────────────────────────────── */
+
+.rack-views-row {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+.rack-side-view-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.rack-side-face-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 2px;
+}
+
+.rack-side-face-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+}
+
+.rack-side-face-label--front {
+    color: #2cc989;
+}
+
+.rack-side-face-label--rear {
+    color: #6aaee8;
+}
+
+.rack-side-view {
+    width: 200px;
+    min-width: 140px;
+    position: relative;
+    background: #1a1d1b;
+    border: 2px solid #5c665f;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: width 0.2s ease;
+}
+
+.rack-side-component {
+    position: absolute;
+    border-radius: 3px;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    transition: opacity 0.15s;
+}
+
+.rack-side-component:hover {
+    opacity: 1;
+}
+
+.rack-side-component__name {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 0 3px;
+    pointer-events: none;
+}
+
+.rack-side-component--front {
+    background: linear-gradient(90deg, #1d6640, #27a369);
+}
+
+.rack-side-component--rear {
+    background: linear-gradient(270deg, #1e4e7a, #2a7bc4);
+    justify-content: flex-end;
+}
+
+.rack-side-component--conflict {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(200, 40, 40, 0.75),
+        rgba(200, 40, 40, 0.75) 4px,
+        rgba(120, 20, 20, 0.75) 4px,
+        rgba(120, 20, 20, 0.75) 8px
+    ) !important;
+}
+
+.rack-side-component--selected {
+    outline: 2px solid #f0c040;
+    outline-offset: -2px;
+    opacity: 1;
+    z-index: 10;
+}
+
+.rack-side-overlap {
+    position: absolute;
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(220, 30, 30, 0.8),
+        rgba(220, 30, 30, 0.8) 3px,
+        rgba(160, 10, 10, 0.6) 3px,
+        rgba(160, 10, 10, 0.6) 6px
+    );
+    pointer-events: none;
+    z-index: 5;
+    border: 1px solid rgba(255, 60, 60, 0.9);
+    border-radius: 2px;
+}
+
+.rack-side-clearance {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: rgba(255, 200, 50, 0.06);
+    border-left: 1px dashed rgba(255, 200, 50, 0.35);
+    border-right: 1px dashed rgba(255, 200, 50, 0.35);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.rack-side-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 12px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.35);
 }

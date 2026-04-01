@@ -439,6 +439,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const rackPropertiesInfoEl = document.getElementById("rackPropertiesInfo");
     const rackNameInput = document.getElementById("rackNameInput");
     const rackTagInput = document.getElementById("rackTagInput");
+    const rackHeightInput = document.getElementById("rackHeightInput");
+    const rackDepthInput = document.getElementById("rackDepthInput");
     const rackRoomInput = document.getElementById("rackRoomInput");
     const rackOwnerInput = document.getElementById("rackOwnerInput");
     const rackClearanceInput = document.getElementById("rackClearanceInput");
@@ -456,7 +458,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const libraryCategorySelect = document.getElementById("libraryCategorySelect");
     const libraryNewCategoryNameInput = document.getElementById("libraryNewCategoryName");
 
-    if (!rackEl || !accordionEl || !rackInfoEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput) {
+    if (!rackEl || !accordionEl || !rackInfoEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput) {
         return;
     }
 
@@ -882,6 +884,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         rackNameInput.value = rackName;
         rackTagInput.value = rackTag;
+        rackHeightInput.value = Number(state.rackHeightRU) || defaultRackHeightRU;
+        rackDepthInput.value = Number(state.rackProfile.rackDepthCm) || 0;
         rackRoomInput.value = state.rackProfile.room || "";
         rackOwnerInput.value = state.rackProfile.owner || "";
         rackClearanceInput.value = Number(state.rackProfile.minDepthClearanceCm) || 0;
@@ -905,19 +909,22 @@ document.addEventListener("DOMContentLoaded", () => {
     function handleSaveRackProperties() {
         const nextName = rackNameInput.value.trim() || "Main Rack";
         const nextTag = rackTagInput.value.trim() || "RACK-01";
+        const nextHeightRU = Math.max(1, Number(rackHeightInput.value) || state.rackHeightRU || defaultRackHeightRU);
+        const nextDepthCm = Math.max(0, Number(rackDepthInput.value) || 0);
+
+        state.rackHeightRU = nextHeightRU;
 
         state.rackProfile = {
             name: nextName,
             tag: nextTag,
             room: rackRoomInput.value.trim(),
             owner: rackOwnerInput.value.trim(),
-            rackDepthCm: Number(state.rackProfile.rackDepthCm) || 0,
+            rackDepthCm: nextDepthCm,
             minDepthClearanceCm: Number(rackClearanceInput.value) || 0,
             notes: rackNotesInput.value.trim()
         };
 
-        renderRackProfile();
-        renderStatus();
+        renderAll();
         syncActiveRackToCatalog();
         setNotice(`Updated rack profile for ${nextName}.`);
     }
@@ -1293,6 +1300,126 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     }
 
+    function renderSideView() {
+        const sideViewEl = document.getElementById("rackSideView");
+        if (!sideViewEl) return;
+
+        const rackDepthCm = getRackDepthCm();
+        const clearanceCm = getRackMinDepthClearanceCm();
+        const SIDE_VIEW_BASE_DEPTH_CM = 100;
+        const SIDE_VIEW_BASE_WIDTH_PX = 200;
+        const SIDE_VIEW_MIN_WIDTH_PX = 140;
+        const SIDE_VIEW_MAX_WIDTH_PX = 420;
+        const sideViewWidthPx = rackDepthCm > 0
+            ? Math.max(
+                SIDE_VIEW_MIN_WIDTH_PX,
+                Math.min(
+                    SIDE_VIEW_MAX_WIDTH_PX,
+                    Math.round((rackDepthCm / SIDE_VIEW_BASE_DEPTH_CM) * SIDE_VIEW_BASE_WIDTH_PX)
+                )
+            )
+            : SIDE_VIEW_BASE_WIDTH_PX;
+
+        sideViewEl.innerHTML = "";
+        sideViewEl.style.width = `${sideViewWidthPx}px`;
+        sideViewEl.style.height = `${state.rackHeightRU * rackUnitPixelHeight}px`;
+
+        if (rackDepthCm <= 0) {
+            const placeholder = document.createElement("div");
+            placeholder.className = "rack-side-placeholder";
+            placeholder.textContent = "Set rack depth in Rack Properties to see side view";
+            sideViewEl.appendChild(placeholder);
+            return;
+        }
+
+        // Clearance zone band (if set)
+        if (clearanceCm > 0) {
+            const bandLeft = (rackDepthCm - clearanceCm) / rackDepthCm * sideViewWidthPx;
+            const bandWidth = clearanceCm / rackDepthCm * sideViewWidthPx;
+            const clearanceEl = document.createElement("div");
+            clearanceEl.className = "rack-side-clearance";
+            clearanceEl.style.left = `${bandLeft}px`;
+            clearanceEl.style.width = `${bandWidth}px`;
+            sideViewEl.appendChild(clearanceEl);
+        }
+
+        const frontComponents = state.rackComponents.filter(c => (c.face || "front") === "front");
+        const rearComponents = state.rackComponents.filter(c => (c.face || "front") === "rear");
+
+        // Determine which components are in a depth conflict
+        const conflictSet = new Set();
+        frontComponents.forEach(fc => {
+            rearComponents.forEach(rc => {
+                if (doComponentsOverlapInRU(fc, rc) && !canFacesShareDepth(fc, rc)) {
+                    conflictSet.add(fc.id);
+                    conflictSet.add(rc.id);
+                }
+            });
+        });
+
+        // Render components (rear first so front renders on top)
+        [...rearComponents, ...frontComponents].forEach(component => {
+            const depthCm = Number(component.depth) || 0;
+            if (depthCm <= 0) return;
+
+            const isFront = (component.face || "front") === "front";
+            const el = document.createElement("div");
+            const top = rackPositionToTop(component.position, component.ru);
+            const height = component.ru * rackUnitPixelHeight - 2;
+            const widthPx = Math.round((depthCm / rackDepthCm) * sideViewWidthPx);
+
+            el.className = `rack-side-component rack-side-component--${isFront ? "front" : "rear"}`;
+            if (conflictSet.has(component.id)) {
+                el.classList.add("rack-side-component--conflict");
+            }
+            if (component.id === state.selectedComponentId) {
+                el.classList.add("rack-side-component--selected");
+            }
+
+            el.style.top = `${top}px`;
+            el.style.height = `${height}px`;
+            el.style.width = `${widthPx}px`;
+            if (isFront) {
+                el.style.left = "0";
+            } else {
+                el.style.right = "0";
+            }
+
+            el.title = `${component.name} | ${isFront ? "Front" : "Rear"} | ${depthCm} cm deep`;
+
+            if (height >= 16) {
+                const nameEl = document.createElement("span");
+                nameEl.className = "rack-side-component__name";
+                nameEl.textContent = component.name;
+                el.appendChild(nameEl);
+            }
+
+            sideViewEl.appendChild(el);
+        });
+
+        // Render overlap zones where front+rear physically collide
+        frontComponents.forEach(fc => {
+            rearComponents.forEach(rc => {
+                if (!doComponentsOverlapInRU(fc, rc) || canFacesShareDepth(fc, rc)) return;
+                const frontDepth = Number(fc.depth) || 0;
+                const rearDepth = Number(rc.depth) || 0;
+                const overlapLeft = Math.round((rackDepthCm - rearDepth) / rackDepthCm * sideViewWidthPx);
+                const overlapRight = Math.round(frontDepth / rackDepthCm * sideViewWidthPx);
+                if (overlapRight <= overlapLeft) return;
+
+                const topRU = Math.max(fc.position, rc.position);
+                const bottomRU = Math.min(fc.position + fc.ru - 1, rc.position + rc.ru - 1);
+                const overlapEl = document.createElement("div");
+                overlapEl.className = "rack-side-overlap";
+                overlapEl.style.top = `${rackPositionToTop(topRU, 1)}px`;
+                overlapEl.style.height = `${(bottomRU - topRU + 1) * rackUnitPixelHeight - 2}px`;
+                overlapEl.style.left = `${overlapLeft}px`;
+                overlapEl.style.width = `${overlapRight - overlapLeft}px`;
+                sideViewEl.appendChild(overlapEl);
+            });
+        });
+    }
+
     function renderLibrary() {
         accordionEl.innerHTML = "";
 
@@ -1395,6 +1522,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderAll() {
         rebuildRackSlots();
         renderRack();
+        renderSideView();
         renderLibrary();
         renderRackProfile();
         renderSelectedComponentPanel();
