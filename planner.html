@@ -13,42 +13,57 @@
             <div id="accordion"></div>
         </div>
         <div class="panel-block">
-            <h5>Default Component Color</h5>
-            <div id="colorPicker" class="color-picker-section">
-                <div class="color-preset-grid" id="colorPresetGrid"></div>
-                <div class="color-picker-input-group">
-                    <label for="customColorInput">Custom Color:</label>
-                    <input type="color" id="customColorInput" placeholder="Pick a color">
-                </div>
-                <div class="selected-color-preview" id="selectedColorPreview" style="background: linear-gradient(135deg, #1f6a52, #2c9874);"></div>
-            </div>
-        </div>
-        <div class="panel-block">
             <h5>Add Library Component</h5>
             <div id="libraryForm" class="stack-form">
                 <select id="libraryCategorySelect"></select>
-                <input type="text" id="libraryNewCategoryName" placeholder="New Category (only used when 'New Category...' is selected)">
+                <input type="text" id="libraryNewCategoryName" placeholder="New Category (when selected)">
                 <span class="field-hint" id="hintLibraryCategory"></span>
                 <input type="text" id="libraryComponentName" placeholder="Component Name">
                 <span class="field-hint" id="hintLibraryName"></span>
-                <input type="number" id="libraryComponentHeight" placeholder="Height (RU)" min="1" value="1">
-                <input type="text" id="libraryComponentClass" placeholder="Style Class">
-                <input type="number" id="libraryComponentDepth" placeholder="Default Depth (cm)" min="0" value="60">
-                <input type="number" id="libraryComponentPower" placeholder="Default Power (W)" min="0" value="0">
+                <div class="field-group">
+                    <label class="library-field-label" for="libraryComponentHeight">Default Height (RU)</label>
+                    <input type="number" id="libraryComponentHeight" placeholder="e.g. 1" min="1">
+                </div>
+                <div class="field-group">
+                    <label class="library-field-label" for="libraryComponentClass">Manufacturer / Description</label>
+                    <input type="text" id="libraryComponentClass" placeholder="e.g. Cisco / Access Switch">
+                </div>
+                <div class="field-group">
+                    <label class="library-field-label" for="libraryComponentDepth">Default Depth (cm)</label>
+                    <input type="number" id="libraryComponentDepth" placeholder="e.g. 60" min="0">
+                </div>
+                <div class="field-group">
+                    <label class="library-field-label" for="libraryComponentPower">Power Usage (W)</label>
+                    <input type="number" id="libraryComponentPower" placeholder="e.g. 250" min="0">
+                </div>
+                <div id="colorPicker" class="compact-color-picker">
+                    <div class="compact-color-picker__header">
+                        <span class="compact-color-picker__title">Color</span>
+                        <div class="compact-color-picker__preview selected-color-preview" id="selectedColorPreview" style="background: linear-gradient(135deg, #1f6a52, #2c9874);"></div>
+                    </div>
+                    <div class="compact-color-picker__controls">
+                        <div class="color-preset-grid" id="colorPresetGrid"></div>
+                        <input type="color" id="customColorInput" aria-label="Custom default component color">
+                    </div>
+                </div>
                 <button id="addLibraryComponent">Add to Library</button>
             </div>
         </div>
         <div class="panel-block">
             <h5>Library File</h5>
-            <button id="saveLibraryButton">Save Library</button>
-            <input type="file" id="loadLibraryInput" accept=".json" style="display: none;">
-            <button id="loadLibraryButton">Load Library</button>
+            <div class="file-actions">
+                <button id="saveLibraryButton">Save Library</button>
+                <input type="file" id="loadLibraryInput" accept=".json,.csv" style="display: none;">
+                <button id="loadLibraryButton">Load Library</button>
+            </div>
         </div>
         <div class="panel-block">
             <h5>Rack File</h5>
-            <button id="saveRackButton">Save Rack</button>
-            <input type="file" id="loadRackInput" accept=".json" style="display: none;">
-            <button id="loadRackButton">Load Rack</button>
+            <div class="file-actions">
+                <button id="saveRackButton">Save Rack</button>
+                <input type="file" id="loadRackInput" accept=".json,.csv" style="display: none;">
+                <button id="loadRackButton">Load Rack</button>
+            </div>
         </div>
     </div>
     <main class="rack-planner-container">
@@ -67,28 +82,11 @@
         </section>
 
         <section class="rack-stage panel-block">
+            <h5 id="rackStageHeading" class="rack-stage-heading">Active Side: Front</h5>
             <div class="rack-frame">
                 <div id="rack"></div>
             </div>
             <div id="viewLegend" class="view-legend"></div>
-        </section>
-
-        <section class="panel-block">
-            <h5>Create Custom Component</h5>
-            <div id="createComponentForm" class="stack-form inline-form">
-                <div class="field-group">
-                    <input type="text" id="newComponentName" placeholder="Component Name">
-                    <span class="field-hint" id="hintNewName"></span>
-                </div>
-                <input type="number" id="newComponentHeight" placeholder="Height (RU)" min="1" value="1">
-                <div class="field-group">
-                    <input type="number" id="newComponentPosition" min="1" max="42" placeholder="Start U (optional)">
-                    <span class="field-hint" id="hintNewPosition"></span>
-                </div>
-                <input type="number" id="newComponentDepth" placeholder="Depth (cm)" min="0" value="60">
-                <input type="number" id="newComponentPower" placeholder="Power (W)" min="0" value="0">
-                <button id="createNewComponent">Create Component</button>
-            </div>
         </section>
 
     </main>
@@ -112,8 +110,12 @@
                     <input type="text" id="rackRoomInput" placeholder="Room A / Datacenter 1">
                 </div>
                 <div class="field-group">
-                    <label class="prop-label">Owner / Team</label>
-                    <input type="text" id="rackOwnerInput" placeholder="Operations Team">
+                    <label class="prop-label">Description / Content</label>
+                    <input type="text" id="rackOwnerInput" placeholder="Rack description">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Minimum Depth Clearance (cm)</label>
+                    <input type="number" id="rackClearanceInput" placeholder="e.g. 5" min="0">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Notes</label>
@@ -156,7 +158,11 @@
                     <input type="text" id="selectedComponentTypeClass" placeholder="—">
                 </div>
                 <div class="field-group">
-                    <label class="prop-label">Component Color</label>
+                    <label class="prop-label">Standard Color</label>
+                    <div id="selectedComponentColorPresets" class="selected-color-palette"></div>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Custom Color (optional)</label>
                     <input type="color" id="selectedComponentColor" placeholder="—">
                 </div>
                 <div class="field-group">

@@ -7,7 +7,7 @@ A web-based data rack planning and management tool for IT professionals. Rackmas
 - **Equipment Room Management**: Create and organize equipment rooms by building and floor level
 - **Rack Configuration**: Define racks with custom heights (RU), depths, power consumption specifications, and tags
 - **Visual Planning**: Drag-and-drop interface to arrange equipment within racks
-- **Catalog Management**: Export and import your equipment catalogs as JSON for backup and sharing
+- **Catalog Management**: Export and import your equipment catalogs as JSON or CSV for backup and sharing
 - **Local Storage**: All data is stored locally in your browser for quick access and offline capability
 - **Flexible Organization**: Track rack positions using tile coordinates (X, Y) for accurate facility mapping
 
@@ -16,7 +16,7 @@ A web-based data rack planning and management tool for IT professionals. Rackmas
 ### Quick Start
 
 1. **Open the application**: Open `index.html` in your web browser
-2. **Create an Equipment Room**: 
+2. **Create an Equipment Room**:
    - Enter room name, building, floor level, and optional notes
    - Click "Create Room"
 3. **Add Racks**:
@@ -24,14 +24,14 @@ A web-based data rack planning and management tool for IT professionals. Rackmas
    - Enter rack name, tag (e.g., RACK-01), height in RU, and other specifications
    - Specify the rack's position using tile coordinates
    - Click "Create Rack"
-4. **Plan Your Layout**: 
+4. **Plan Your Layout**:
    - Open the planner to visually arrange equipment within your racks
    - Click "Open Empty Planner" or access racks from the room sections
 
 ### Managing Your Catalog
 
-- **Export**: Save your entire equipment catalog as a JSON file for backup
-- **Import**: Load a previously exported catalog or share configurations with team members
+- **Export**: Save your catalog, rack files, and library files as JSON or CSV. When exporting, choose format and destination in the browser save dialog (when supported).
+- **Import**: Load previously exported JSON or CSV files for catalog, rack, and library data
 
 ## File Structure
 

@@ -10,20 +10,43 @@
         <h4>Rack Catalog</h4>
         <div id="mainSideMenu">
             <button id="exportCatalogButton" type="button">Export Catalog</button>
-            <input type="file" id="importCatalogInput" accept=".json" style="display: none;">
+            <input type="file" id="importCatalogInput" accept=".json,.csv" style="display: none;">
             <button id="importCatalogButton" type="button">Import Catalog</button>
-            <a href="planner.html">Open Empty Planner</a>
+            <button id="clearCatalogButton" type="button">Clear Catalog (browser cache)</button>
         </div>
+        <span>
+            <div id="indexMessageLeft" class="message-banner">NOTE: <br>RackMaster stores your rack catalog locally in your browser (cache), 
+                but you need to perform export to save it permanently.</div>
+        </span>
     </div>
 
     <main class="index-main">
         <section class="panel-block">
             <h5>Create Equipment Room</h5>
             <div id="createRoomForm" class="stack-form inline-form">
-                <input type="text" id="roomNameInput" placeholder="Equipment Room Name">
-                <input type="text" id="buildingInput" placeholder="Building">
-                <input type="text" id="floorInput" placeholder="Floor level">
-                <input type="text" id="roomNotesInput" placeholder="Notes (optional)">
+                <label for="roomNameInput">Room name:
+                    <input type="text" id="roomNameInput" placeholder="e.g. Server Room 1">
+                </label>
+                <label for="buildingInput">Building:
+                    <input type="text" id="buildingInput" placeholder="e.g. Main Data Center">
+                </label>
+                <label for="floorInput">Floor level:
+                    <select id="floorInput" placeholder="e.g. 1st Floor">
+                        <option value="1">1st Floor</option>
+                        <option value="2">2nd Floor</option>
+                        <option value="3">3rd Floor</option>
+                        <option value="4">4th Floor</option>
+                        <option value="5">5th Floor</option>
+                        <option value="6">6th Floor</option>
+                        <option value="7">7th Floor</option>
+                        <option value="8">8th Floor</option>
+                        <option value="9">9th Floor</option>
+                        <option value="10">10th Floor</option>   
+                    </select>
+                </label>
+                <label for="roomNotesInput">Notes (optional):
+                    <input type="text" id="roomNotesInput" placeholder="Notes (optional)">
+                </label>
                 <button id="createRoomButton" type="button">Create Room</button>
             </div>
         </section>
@@ -31,18 +54,36 @@
         <section class="panel-block">
             <h5>Create Rack</h5>
             <div id="createRackForm" class="stack-form inline-form">
-                <input type="text" id="newRackName" placeholder="Rack Name">
-                <select id="rackRoomSelect"></select>
-                <input type="text" id="newRackTag" placeholder="Rack Tag (e.g. RACK-01)">
-                <input type="number" id="newRackHeight" placeholder="Height (RU)" min="1" value="42">
-                <input type="number" id="newTileX" placeholder="Rack number/Tile #X">
-                <input type="number" id="newTileY" placeholder="Row/Tile #Y">
-                <input type="number" id="newRackDepth" placeholder="Rack Depth (cm)" min="0" value="60">
-                <input type="number" id="newPowerConsumption" placeholder="Power Consumption (W)" min="0" value="0">
-                <input type="text" id="newRackNotes" placeholder="Rack notes (optional)">
+                <label for="newRackName">Rack Name:
+                    <input type="text" id="newRackName" placeholder="e.g. Server Rack 1">
+                </label>
+                <label for="rackRoomSelect">Select Room:
+                    <select id="rackRoomSelect"></select>
+                </label>
+                <label for="newRackTag">Rack Tag:
+                    <input type="text" id="newRackTag" placeholder="e.g. RACK#01">
+                </label>
+                <label for="newRackHeight">Height [Rack Units]:
+                    <input type="number" id="newRackHeight" placeholder="Height (RU)" min="1" value="42">
+                </label>
+                <label for="newTileY">Row/Tile #Y:
+                    <input type="number" id="newTileY" placeholder="Row/Tile #Y">
+                </label>
+                <label for="newTileX">Rack number/Tile #X:
+                    <input type="number" id="newTileX" placeholder="Rack number/Tile #X">
+                </label>
+                <label for="newRackDepth">Rack Depth (cm):
+                    <input type="number" id="newRackDepth" placeholder="Rack Depth (cm)" min="0" value="60">
+                </label>
+                <label for="newPowerConsumption">Power Consumption (W):
+                    <input type="number" id="newPowerConsumption" placeholder="Power Consumption (W)" min="0" value="0">
+                </label>
+                <label for="newRackNotes">Rack notes (optional):
+                    <input type="text" id="newRackNotes" placeholder="Rack notes (optional)">
+                </label>
                 <button class="button" id="createNewRack" type="button">Create Rack</button>
             </div>
-            <div id="indexStatus" class="message-banner">Create an equipment room first, then add racks.</div>
+            <div id="indexStatus" class="message-banner">NOTE: Create an equipment room first, then add racks to it.</div>
         </section>
 
         <section class="panel-block">

@@ -25,6 +25,251 @@ document.addEventListener("DOMContentLoaded", () => {
         localStorage.setItem(catalogStorageKey, JSON.stringify(catalog));
     }
 
+    function chooseDataFormat(actionLabel) {
+        return new Promise(resolve => {
+            const overlay = document.createElement("div");
+            overlay.style.position = "fixed";
+            overlay.style.inset = "0";
+            overlay.style.background = "rgba(0, 0, 0, 0.45)";
+            overlay.style.display = "flex";
+            overlay.style.alignItems = "center";
+            overlay.style.justifyContent = "center";
+            overlay.style.zIndex = "9999";
+
+            const dialog = document.createElement("div");
+            dialog.style.background = "#ffffff";
+            dialog.style.borderRadius = "12px";
+            dialog.style.padding = "18px";
+            dialog.style.minWidth = "280px";
+            dialog.style.maxWidth = "92vw";
+            dialog.style.boxShadow = "0 10px 28px rgba(0,0,0,0.25)";
+
+            const title = document.createElement("h5");
+            title.textContent = `${actionLabel} format`;
+            title.style.margin = "0 0 8px 0";
+
+            const description = document.createElement("p");
+            description.textContent = "Choose a file format:";
+            description.style.margin = "0 0 12px 0";
+
+            const actions = document.createElement("div");
+            actions.style.display = "flex";
+            actions.style.gap = "8px";
+            actions.style.flexWrap = "wrap";
+
+            const jsonButton = document.createElement("button");
+            jsonButton.type = "button";
+            jsonButton.textContent = "JSON";
+
+            const csvButton = document.createElement("button");
+            csvButton.type = "button";
+            csvButton.textContent = "CSV";
+
+            const cancelButton = document.createElement("button");
+            cancelButton.type = "button";
+            cancelButton.textContent = "Cancel";
+
+            function closeWith(value) {
+                overlay.remove();
+                resolve(value);
+            }
+
+            jsonButton.addEventListener("click", () => closeWith("json"));
+            csvButton.addEventListener("click", () => closeWith("csv"));
+            cancelButton.addEventListener("click", () => closeWith(null));
+            overlay.addEventListener("click", event => {
+                if (event.target === overlay) {
+                    closeWith(null);
+                }
+            });
+
+            actions.appendChild(jsonButton);
+            actions.appendChild(csvButton);
+            actions.appendChild(cancelButton);
+            dialog.appendChild(title);
+            dialog.appendChild(description);
+            dialog.appendChild(actions);
+            overlay.appendChild(dialog);
+            document.body.appendChild(overlay);
+        });
+    }
+
+    function csvEscape(value) {
+        const text = value == null ? "" : String(value);
+        if (!/[",\n\r]/.test(text)) {
+            return text;
+        }
+        return `"${text.replace(/"/g, '""')}"`;
+    }
+
+    function toCsv(headers, rows) {
+        const headerLine = headers.map(csvEscape).join(",");
+        const bodyLines = rows.map(row => headers.map(header => csvEscape(row[header])).join(","));
+        return [headerLine, ...bodyLines].join("\n");
+    }
+
+    function parseCsv(text) {
+        const rows = [];
+        let row = [];
+        let value = "";
+        let index = 0;
+        let insideQuotes = false;
+
+        while (index < text.length) {
+            const char = text[index];
+
+            if (insideQuotes) {
+                if (char === '"') {
+                    if (text[index + 1] === '"') {
+                        value += '"';
+                        index += 1;
+                    } else {
+                        insideQuotes = false;
+                    }
+                } else {
+                    value += char;
+                }
+                index += 1;
+                continue;
+            }
+
+            if (char === '"') {
+                insideQuotes = true;
+                index += 1;
+                continue;
+            }
+
+            if (char === ",") {
+                row.push(value);
+                value = "";
+                index += 1;
+                continue;
+            }
+
+            if (char === "\n") {
+                row.push(value);
+                rows.push(row);
+                row = [];
+                value = "";
+                index += 1;
+                continue;
+            }
+
+            if (char === "\r") {
+                index += 1;
+                continue;
+            }
+
+            value += char;
+            index += 1;
+        }
+
+        if (value.length > 0 || row.length > 0) {
+            row.push(value);
+            rows.push(row);
+        }
+
+        if (rows.length === 0) {
+            return [];
+        }
+
+        const [headers, ...dataRows] = rows;
+        return dataRows
+            .filter(dataRow => dataRow.some(cell => String(cell || "").trim() !== ""))
+            .map(dataRow => {
+                const result = {};
+                headers.forEach((header, idx) => {
+                    result[header] = dataRow[idx] ?? "";
+                });
+                return result;
+            });
+    }
+
+    function asNumber(value, fallback = 0) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : fallback;
+    }
+
+    function asOptionalNumber(value) {
+        if (value == null || String(value).trim() === "") {
+            return null;
+        }
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    async function saveTextFile(filename, textContent, mimeType, extensionWithDot) {
+        if (window.showSaveFilePicker) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: filename,
+                    types: [{
+                        description: extensionWithDot === ".csv" ? "CSV files" : "JSON files",
+                        accept: { [mimeType]: [extensionWithDot] }
+                    }]
+                });
+                const writable = await handle.createWritable();
+                await writable.write(textContent);
+                await writable.close();
+                return true;
+            } catch (error) {
+                if (error && error.name === "AbortError") {
+                    return false;
+                }
+            }
+        }
+
+        const blob = new Blob([textContent], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const anchor = document.createElement("a");
+        anchor.href = url;
+        anchor.download = filename;
+        anchor.click();
+        URL.revokeObjectURL(url);
+        return true;
+    }
+
+    function readTextFromInput(fileInput) {
+        return new Promise((resolve, reject) => {
+            const file = fileInput.files && fileInput.files[0];
+            if (!file) {
+                reject(new Error("No file selected."));
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = event => resolve(String(event.target?.result || ""));
+            reader.onerror = () => reject(new Error("Could not read file."));
+            reader.readAsText(file);
+        });
+    }
+
+    async function openTextFileWithPicker(format) {
+        if (!window.showOpenFilePicker) {
+            return null;
+        }
+
+        const isCsv = format === "csv";
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                multiple: false,
+                types: [{
+                    description: isCsv ? "CSV files" : "JSON files",
+                    accept: {
+                        [isCsv ? "text/csv" : "application/json"]: [isCsv ? ".csv" : ".json"]
+                    }
+                }]
+            });
+            const file = await handle.getFile();
+            return await file.text();
+        } catch (error) {
+            if (error && error.name === "AbortError") {
+                return "";
+            }
+            throw error;
+        }
+    }
+
     function initIndexPage() {
         const roomNameInput = document.getElementById("roomNameInput");
         const buildingInput = document.getElementById("buildingInput");
@@ -46,12 +291,136 @@ document.addEventListener("DOMContentLoaded", () => {
         const exportCatalogButton = document.getElementById("exportCatalogButton");
         const importCatalogButton = document.getElementById("importCatalogButton");
         const importCatalogInput = document.getElementById("importCatalogInput");
+        const clearCatalogButton = document.getElementById("clearCatalogButton");
 
-        if (!roomNameInput || !buildingInput || !floorInput || !roomNotesInput || !createRoomButton || !newRackNameInput || !rackRoomSelect || !newRackTagInput || !newRackHeightInput || !newTileXInput || !newTileYInput || !newRackDepthInput || !newPowerInput || !newRackNotesInput || !createRackButton || !roomSectionsEl || !statusEl || !exportCatalogButton || !importCatalogButton || !importCatalogInput) {
+        if (!roomNameInput || !buildingInput || !floorInput || !roomNotesInput || !createRoomButton || !newRackNameInput || !rackRoomSelect || !newRackTagInput || !newRackHeightInput || !newTileXInput || !newTileYInput || !newRackDepthInput || !newPowerInput || !newRackNotesInput || !createRackButton || !roomSectionsEl || !statusEl || !exportCatalogButton || !importCatalogButton || !importCatalogInput || !clearCatalogButton) {
             return;
         }
 
         let catalog = readCatalog();
+
+        const catalogCsvHeaders = [
+            "rowType",
+            "roomId",
+            "roomName",
+            "building",
+            "floor",
+            "roomNotes",
+            "rackId",
+            "rackName",
+            "rackTag",
+            "rackHeightRU",
+            "tileX",
+            "tileY",
+            "depth",
+            "power",
+            "rackNotes",
+            "updatedAt",
+            "plannerStateJson"
+        ];
+
+        function catalogToCsv(catalogPayload) {
+            const rows = [];
+            const rooms = Array.isArray(catalogPayload.rooms) ? catalogPayload.rooms : [];
+
+            rooms.forEach(room => {
+                rows.push({
+                    rowType: "room",
+                    roomId: room.id || createCatalogId("room"),
+                    roomName: room.name || "",
+                    building: room.building || "",
+                    floor: room.floor || "",
+                    roomNotes: room.notes || "",
+                    rackId: "",
+                    rackName: "",
+                    rackTag: "",
+                    rackHeightRU: "",
+                    tileX: "",
+                    tileY: "",
+                    depth: "",
+                    power: "",
+                    rackNotes: "",
+                    updatedAt: "",
+                    plannerStateJson: ""
+                });
+
+                (Array.isArray(room.racks) ? room.racks : []).forEach(rack => {
+                    rows.push({
+                        rowType: "rack",
+                        roomId: room.id || "",
+                        roomName: room.name || "",
+                        building: room.building || "",
+                        floor: room.floor || "",
+                        roomNotes: room.notes || "",
+                        rackId: rack.id || createCatalogId("rack"),
+                        rackName: rack.name || "",
+                        rackTag: rack.tag || "",
+                        rackHeightRU: asNumber(rack.heightRU, 42),
+                        tileX: rack.tileX == null ? "" : rack.tileX,
+                        tileY: rack.tileY == null ? "" : rack.tileY,
+                        depth: asNumber(rack.depth, 0),
+                        power: asNumber(rack.power, 0),
+                        rackNotes: rack.notes || "",
+                        updatedAt: rack.updatedAt || "",
+                        plannerStateJson: rack.plannerState ? JSON.stringify(rack.plannerState) : ""
+                    });
+                });
+            });
+
+            return toCsv(catalogCsvHeaders, rows);
+        }
+
+        function csvToCatalog(csvText) {
+            const records = parseCsv(csvText);
+            const roomMap = new Map();
+
+            records.forEach(record => {
+                const rowType = String(record.rowType || "").trim().toLowerCase();
+                if (rowType !== "room" && rowType !== "rack") {
+                    return;
+                }
+
+                const roomId = String(record.roomId || "").trim() || createCatalogId("room");
+                if (!roomMap.has(roomId)) {
+                    roomMap.set(roomId, {
+                        id: roomId,
+                        name: String(record.roomName || "").trim() || "Unnamed Room",
+                        building: String(record.building || "").trim(),
+                        floor: String(record.floor || "").trim(),
+                        notes: String(record.roomNotes || "").trim(),
+                        racks: []
+                    });
+                }
+
+                if (rowType === "rack") {
+                    const room = roomMap.get(roomId);
+                    let plannerState = null;
+                    if (String(record.plannerStateJson || "").trim()) {
+                        try {
+                            plannerState = JSON.parse(record.plannerStateJson);
+                        } catch (_error) {
+                            plannerState = null;
+                        }
+                    }
+
+                    room.racks.push({
+                        id: String(record.rackId || "").trim() || createCatalogId("rack"),
+                        name: String(record.rackName || "").trim() || "Unnamed Rack",
+                        tag: String(record.rackTag || "").trim() || "RACK",
+                        heightRU: asNumber(record.rackHeightRU, 42),
+                        tileX: asOptionalNumber(record.tileX),
+                        tileY: asOptionalNumber(record.tileY),
+                        depth: asNumber(record.depth, 0),
+                        power: asNumber(record.power, 0),
+                        notes: String(record.rackNotes || "").trim(),
+                        plannerState,
+                        updatedAt: String(record.updatedAt || "").trim() || new Date().toISOString()
+                    });
+                }
+            });
+
+            return { rooms: Array.from(roomMap.values()) };
+        }
 
         function setStatus(message) {
             statusEl.textContent = message;
@@ -243,6 +612,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         tag: rackTag,
                         room: `${room.name} (${room.building} / ${room.floor})`,
                         owner: "",
+                        rackDepthCm: depth,
+                        minDepthClearanceCm: 0,
                         notes
                     },
                     components: []
@@ -265,43 +636,97 @@ document.addEventListener("DOMContentLoaded", () => {
             setStatus(`Created rack ${rackName} in ${room.name}.`);
         });
 
-        exportCatalogButton.addEventListener("click", () => {
-            const blob = new Blob([JSON.stringify(catalog, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const anchor = document.createElement("a");
-            anchor.href = url;
-            anchor.download = "rackplanner-catalog.json";
-            anchor.click();
-            URL.revokeObjectURL(url);
-            setStatus("Catalog exported.");
-        });
-
-        importCatalogButton.addEventListener("click", () => importCatalogInput.click());
-        importCatalogInput.addEventListener("change", () => {
-            const file = importCatalogInput.files[0];
-            if (!file) {
+        exportCatalogButton.addEventListener("click", async () => {
+            const format = await chooseDataFormat("Export");
+            if (!format) {
+                setStatus("Export canceled.");
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = event => {
+            const isCsv = format === "csv";
+            const filename = `rackplanner-catalog.${isCsv ? "csv" : "json"}`;
+            const content = isCsv ? catalogToCsv(catalog) : JSON.stringify(catalog, null, 2);
+            const saved = await saveTextFile(filename, content, isCsv ? "text/csv" : "application/json", isCsv ? ".csv" : ".json");
+            setStatus(saved ? `Catalog exported as ${format.toUpperCase()}.` : "Export canceled.");
+        });
+
+        importCatalogButton.addEventListener("click", async () => {
+            const format = await chooseDataFormat("Import");
+            if (!format) {
+                setStatus("Import canceled.");
+                return;
+            }
+
+            if (window.showOpenFilePicker) {
                 try {
-                    const parsedCatalog = JSON.parse(event.target.result);
+                    const rawText = await openTextFileWithPicker(format);
+                    if (rawText === "") {
+                        setStatus("Import canceled.");
+                        return;
+                    }
+
+                    const parsedCatalog = format === "csv"
+                        ? csvToCatalog(rawText)
+                        : JSON.parse(rawText);
+
                     if (!parsedCatalog || !Array.isArray(parsedCatalog.rooms)) {
                         throw new Error("Invalid catalog format");
                     }
+
                     catalog = { rooms: parsedCatalog.rooms };
                     writeCatalog(catalog);
                     renderRoomSelect();
                     renderRoomSections();
-                    setStatus("Catalog imported.");
+                    setStatus(`Catalog imported from ${format.toUpperCase()}.`);
+                    return;
                 } catch (_error) {
-                    setStatus("Could not import catalog JSON.");
-                } finally {
-                    importCatalogInput.value = "";
+                    setStatus("Could not import catalog file.");
+                    return;
                 }
-            };
-            reader.readAsText(file);
+            }
+
+            importCatalogInput.dataset.format = format;
+            importCatalogInput.accept = format === "csv" ? ".csv,text/csv" : ".json,application/json";
+            importCatalogInput.click();
+        });
+        importCatalogInput.addEventListener("change", async () => {
+            try {
+                const format = importCatalogInput.dataset.format || "json";
+                const rawText = await readTextFromInput(importCatalogInput);
+                const parsedCatalog = format === "csv"
+                    ? csvToCatalog(rawText)
+                    : JSON.parse(rawText);
+
+                if (!parsedCatalog || !Array.isArray(parsedCatalog.rooms)) {
+                    throw new Error("Invalid catalog format");
+                }
+
+                catalog = { rooms: parsedCatalog.rooms };
+                writeCatalog(catalog);
+                renderRoomSelect();
+                renderRoomSections();
+                setStatus(`Catalog imported from ${format.toUpperCase()}.`);
+            } catch (_error) {
+                setStatus("Could not import catalog file.");
+            } finally {
+                importCatalogInput.value = "";
+            }
+        });
+
+        clearCatalogButton.addEventListener("click", () => {
+            const confirmed = window.confirm("Clear all RackMaster data stored in this browser?");
+            if (!confirmed) {
+                return;
+            }
+
+            Object.keys(localStorage)
+                .filter(key => key.startsWith("rackplanner."))
+                .forEach(key => localStorage.removeItem(key));
+
+            catalog = { rooms: [] };
+            renderRoomSelect();
+            renderRoomSections();
+            setStatus("Local RackMaster browser data cleared.");
         });
 
         renderRoomSelect();
@@ -314,6 +739,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const rackEl = document.getElementById("rack");
+    const rackStageHeadingEl = document.getElementById("rackStageHeading");
     const accordionEl = document.getElementById("accordion");
     const rackInfoEl = document.getElementById("rackInfo");
     const viewLegendEl = document.getElementById("viewLegend");
@@ -326,11 +752,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const rackTagInput = document.getElementById("rackTagInput");
     const rackRoomInput = document.getElementById("rackRoomInput");
     const rackOwnerInput = document.getElementById("rackOwnerInput");
+    const rackClearanceInput = document.getElementById("rackClearanceInput");
     const rackNotesInput = document.getElementById("rackNotesInput");
     const saveRackPropertiesButton = document.getElementById("saveRackProperties");
     const toggleVacantSlotsButton = document.getElementById("toggleVacantSlots");
     const toggleViewButton = document.getElementById("toggleViewButton");
-    const createComponentButton = document.getElementById("createNewComponent");
     const addLibraryComponentButton = document.getElementById("addLibraryComponent");
     const saveSelectedComponentButton = document.getElementById("saveSelectedComponent");
     const deleteSelectedComponentButton = document.getElementById("deleteSelectedComponent");
@@ -341,7 +767,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const libraryCategorySelect = document.getElementById("libraryCategorySelect");
     const libraryNewCategoryNameInput = document.getElementById("libraryNewCategoryName");
 
-    if (!rackEl || !accordionEl || !rackInfoEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackRoomInput || !rackOwnerInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !createComponentButton || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput) {
+    if (!rackEl || !accordionEl || !rackInfoEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput) {
         return;
     }
 
@@ -407,6 +833,8 @@ document.addEventListener("DOMContentLoaded", () => {
             tag: "RACK-01",
             room: "",
             owner: "",
+            rackDepthCm: 0,
+            minDepthClearanceCm: 0,
             notes: ""
         },
         showVacantSlots: true,
@@ -428,6 +856,7 @@ document.addEventListener("DOMContentLoaded", () => {
         color: document.getElementById("selectedComponentColor"),
         notes: document.getElementById("selectedComponentNotes")
     };
+    const selectedComponentColorPresetsEl = document.getElementById("selectedComponentColorPresets");
 
     const activeRackId = new URLSearchParams(window.location.search).get("rackId");
 
@@ -470,6 +899,102 @@ document.addEventListener("DOMContentLoaded", () => {
             .replace(/^-+|-+$/g, "") || "default-component";
     }
 
+    function getComponentDisplayColor(component) {
+        if (component && component.customColor) {
+            return component.customColor;
+        }
+
+        const typeClass = normalizeTypeClass(component?.typeClass || "default-component");
+        const typeClassColorMap = {
+            router: "#1d8a9b",
+            switch: "#4d7ea8",
+            firewall: "#b6505d",
+            "load-balancer": "#7e68a3",
+            "access-point": "#678d52",
+            nas: "#ab7344",
+            san: "#8b5a42",
+            "web-server": "#44708b",
+            "database-server": "#8b1e5c",
+            "app-server": "#6169a8",
+            ups: "#708577",
+            pdu: "#9a6f53",
+            accessories: "#7d8994",
+            "custom-component": "#2c9874",
+            "default-component": "#9ca3af"
+        };
+
+        return typeClassColorMap[typeClass] || typeClassColorMap["default-component"];
+    }
+
+    function updateSelectedComponentPaletteSelection(colorHex) {
+        if (!selectedComponentColorPresetsEl) {
+            return;
+        }
+
+        const normalizedTarget = String(colorHex || "").toLowerCase();
+        selectedComponentColorPresetsEl.querySelectorAll(".color-preset").forEach(button => {
+            const matches = String(button.dataset.color || "").toLowerCase() === normalizedTarget;
+            button.classList.toggle("is-selected", matches);
+        });
+    }
+
+    function initializeSelectedComponentColorPalette() {
+        if (!selectedComponentColorPresetsEl) {
+            return;
+        }
+
+        selectedComponentColorPresetsEl.innerHTML = "";
+
+        colorPresets.forEach(preset => {
+            const button = document.createElement("button");
+            button.className = "color-preset";
+            button.type = "button";
+            button.style.background = preset.gradient;
+            button.dataset.color = preset.color;
+            button.title = preset.name;
+            button.setAttribute("aria-label", `Apply ${preset.name} to selected component`);
+
+            button.addEventListener("click", () => {
+                const selectedComponent = getSelectedRackComponent();
+                if (!selectedComponent) {
+                    return;
+                }
+
+                selectedComponentFields.color.value = preset.color;
+                updateSelectedComponentPaletteSelection(preset.color);
+                selectedComponent.customColor = preset.color;
+                renderRack();
+                renderSelectedComponentPanel();
+                syncActiveRackToCatalog();
+                setNotice(`Updated ${selectedComponent.name} color.`);
+            });
+
+            selectedComponentColorPresetsEl.appendChild(button);
+        });
+
+        selectedComponentFields.color.addEventListener("input", event => {
+            const selectedComponent = getSelectedRackComponent();
+            if (!selectedComponent) {
+                updateSelectedComponentPaletteSelection(event.target.value);
+                return;
+            }
+
+            const nextColor = event.target.value || null;
+            selectedComponent.customColor = nextColor;
+            updateSelectedComponentPaletteSelection(nextColor);
+            renderRack();
+            syncActiveRackToCatalog();
+        });
+
+        selectedComponentFields.color.addEventListener("change", () => {
+            const selectedComponent = getSelectedRackComponent();
+            if (!selectedComponent) {
+                return;
+            }
+            setNotice(`Updated ${selectedComponent.name} color.`);
+        });
+    }
+
     function createEmptyRackSlots(heightRU) {
         return Array.from({ length: heightRU }, () => ({ front: false, rear: false }));
     }
@@ -485,11 +1010,33 @@ document.addEventListener("DOMContentLoaded", () => {
             power: Number(component.power) || 0,
             notes: String(component.notes || "").trim(),
             customColor: component.customColor || null,
+            face: component.face === "rear" ? "rear" : "front",
             occupancy: {
-                front: true,
-                rear: true
+                front: component.face === "rear" ? false : true,
+                rear: component.face === "rear"
             }
         };
+    }
+
+    function parseDraggedPayload(event) {
+        const rawData = event.dataTransfer.getData("application/json");
+        if (!rawData) {
+            return null;
+        }
+
+        try {
+            const parsed = JSON.parse(rawData);
+            if (parsed && parsed.source) {
+                return parsed;
+            }
+            return {
+                source: "library",
+                component: parsed
+            };
+        } catch (error) {
+            setNotice(`Could not parse dragged component: ${error.message}`);
+            return null;
+        }
     }
 
     function rebuildRackSlots() {
@@ -499,10 +1046,66 @@ document.addEventListener("DOMContentLoaded", () => {
             for (let offset = 0; offset < component.ru; offset += 1) {
                 const slotIndex = component.position - 1 + offset;
                 if (state.rackSlots[slotIndex]) {
-                    state.rackSlots[slotIndex].front = true;
-                    state.rackSlots[slotIndex].rear = true;
+                    if ((component.face || "front") === "rear") {
+                        state.rackSlots[slotIndex].rear = true;
+                    } else {
+                        state.rackSlots[slotIndex].front = true;
+                    }
                 }
             }
+        });
+    }
+
+    function getRackDepthCm() {
+        return Math.max(0, Number(state.rackProfile.rackDepthCm) || 0);
+    }
+
+    function getRackMinDepthClearanceCm() {
+        return Math.max(0, Number(state.rackProfile.minDepthClearanceCm) || 0);
+    }
+
+    function doComponentsOverlapInRU(leftComponent, rightComponent) {
+        const leftEnd = leftComponent.position + leftComponent.ru - 1;
+        const rightEnd = rightComponent.position + rightComponent.ru - 1;
+        return !(leftEnd < rightComponent.position || leftComponent.position > rightEnd);
+    }
+
+    function canFacesShareDepth(candidateComponent, existingComponent) {
+        const rackDepthCm = getRackDepthCm();
+        const clearanceCm = getRackMinDepthClearanceCm();
+        if (rackDepthCm <= 0) {
+            return false;
+        }
+
+        return (Number(candidateComponent.depth) || 0) + (Number(existingComponent.depth) || 0) + clearanceCm <= rackDepthCm;
+    }
+
+    function getBlockedOppositeFaceComponents() {
+        const activeFace = state.currentView;
+        const oppositeFace = activeFace === "front" ? "rear" : "front";
+        const rackDepthCm = getRackDepthCm();
+        const clearanceCm = getRackMinDepthClearanceCm();
+
+        if (rackDepthCm <= 0 || clearanceCm <= 0) {
+            return [];
+        }
+
+        return state.rackComponents.filter(component => {
+            if ((component.face || "front") !== oppositeFace) {
+                return false;
+            }
+
+            const freeDepthCm = rackDepthCm - (Number(component.depth) || 0);
+            if (freeDepthCm >= clearanceCm) {
+                return false;
+            }
+
+            return !state.rackComponents.some(candidate => {
+                if ((candidate.face || "front") !== activeFace) {
+                    return false;
+                }
+                return doComponentsOverlapInRU(component, candidate);
+            });
         });
     }
 
@@ -514,6 +1117,10 @@ document.addEventListener("DOMContentLoaded", () => {
         return state.rackComponents.reduce((highest, component) => {
             return Math.max(highest, component.position + component.ru - 1);
         }, 0);
+    }
+
+    function getTotalPowerConsumption() {
+        return state.rackComponents.reduce((sum, component) => sum + (Number(component.power) || 0), 0);
     }
 
     function getComponentRangeLabel(component) {
@@ -542,29 +1149,40 @@ document.addEventListener("DOMContentLoaded", () => {
         return Math.max(1, Math.min(rawPosition, maxStartPosition));
     }
 
-    function isRackPositionAvailable(position, componentHeightRU, componentIdToIgnore = null) {
+    function isRackPositionAvailable(position, componentHeightRU, componentIdToIgnore = null, face = state.currentView, depth = 0) {
         if (position < 1 || position + componentHeightRU - 1 > state.rackHeightRU) {
             return false;
         }
+
+        const candidateComponent = {
+            position,
+            ru: componentHeightRU,
+            face,
+            depth
+        };
 
         return !state.rackComponents.some(component => {
             if (component.id === componentIdToIgnore) {
                 return false;
             }
 
-            const componentStart = component.position;
-            const componentEnd = component.position + component.ru - 1;
-            const requestedEnd = position + componentHeightRU - 1;
+            if (!doComponentsOverlapInRU(candidateComponent, component)) {
+                return false;
+            }
 
-            return !(requestedEnd < componentStart || position > componentEnd);
+            if ((component.face || "front") === face) {
+                return true;
+            }
+
+            return !canFacesShareDepth(candidateComponent, component);
         });
     }
 
-    function findFirstAvailablePosition(componentHeightRU) {
+    function findFirstAvailablePosition(componentHeightRU, face = state.currentView, depth = 0) {
         const maxStartPosition = state.rackHeightRU - componentHeightRU + 1;
 
         for (let position = 1; position <= maxStartPosition; position += 1) {
-            if (isRackPositionAvailable(position, componentHeightRU)) {
+            if (isRackPositionAvailable(position, componentHeightRU, null, face, depth)) {
                 return position;
             }
         }
@@ -572,34 +1190,192 @@ document.addEventListener("DOMContentLoaded", () => {
         return null;
     }
 
-    function downloadJson(filename, payload) {
-        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement("a");
-        anchor.href = url;
-        anchor.download = filename;
-        anchor.click();
-        URL.revokeObjectURL(url);
+    const rackCsvHeaders = [
+        "rowType",
+        "rackHeightRU",
+        "currentView",
+        "showVacantSlots",
+        "rackName",
+        "rackTag",
+        "rackRoom",
+        "rackOwner",
+        "rackDepthCm",
+        "rackMinDepthClearanceCm",
+        "rackNotes",
+        "rackTotalCalculatedConsumptionW",
+        "componentId",
+        "componentName",
+        "componentRU",
+        "componentPosition",
+        "typeClass",
+        "depth",
+        "power",
+        "notes",
+        "customColor"
+    ];
+
+    const libraryCsvHeaders = [
+        "rowType",
+        "categoryName",
+        "itemName",
+        "ru",
+        "typeClass",
+        "defaultDepth",
+        "defaultPower"
+    ];
+
+    function rackPayloadToCsv(payload) {
+        const rows = [
+            {
+                rowType: "meta",
+                rackHeightRU: asNumber(payload.rackHeightRU, defaultRackHeightRU),
+                currentView: payload.currentView === "rear" ? "rear" : "front",
+                showVacantSlots: payload.showVacantSlots !== false,
+                rackName: payload.rackProfile?.name || "Main Rack",
+                rackTag: payload.rackProfile?.tag || "RACK-01",
+                rackRoom: payload.rackProfile?.room || "",
+                rackOwner: payload.rackProfile?.owner || "",
+                rackDepthCm: asNumber(payload.rackProfile?.rackDepthCm, 0),
+                rackMinDepthClearanceCm: asNumber(payload.rackProfile?.minDepthClearanceCm, 0),
+                rackNotes: payload.rackProfile?.notes || "",
+                rackTotalCalculatedConsumptionW: asNumber(payload.rackProfile?.totalCalculatedConsumptionW, 0),
+                componentId: "",
+                componentName: "",
+                componentRU: "",
+                componentPosition: "",
+                typeClass: "",
+                depth: "",
+                power: "",
+                notes: "",
+                customColor: ""
+            }
+        ];
+
+        (Array.isArray(payload.components) ? payload.components : []).forEach(component => {
+            rows.push({
+                rowType: "component",
+                rackHeightRU: "",
+                currentView: "",
+                showVacantSlots: "",
+                rackName: "",
+                rackTag: "",
+                rackRoom: "",
+                rackOwner: "",
+                rackDepthCm: "",
+                rackMinDepthClearanceCm: "",
+                rackNotes: "",
+                rackTotalCalculatedConsumptionW: "",
+                componentId: component.id || createId("component"),
+                componentName: component.name || "",
+                componentRU: asNumber(component.ru, 1),
+                componentPosition: asNumber(component.position, 1),
+                typeClass: component.typeClass || "default-component",
+                depth: asNumber(component.depth, 0),
+                power: asNumber(component.power, 0),
+                notes: component.notes || "",
+                customColor: component.customColor || ""
+            });
+        });
+
+        return toCsv(rackCsvHeaders, rows);
     }
 
-    function loadJsonFromInput(fileInput, onLoad) {
-        const file = fileInput.files[0];
-        if (!file) {
-            return;
-        }
+    function csvToRackPayload(csvText) {
+        const records = parseCsv(csvText);
+        const meta = records.find(record => String(record.rowType || "").trim().toLowerCase() === "meta") || {};
+        const components = records
+            .filter(record => String(record.rowType || "").trim().toLowerCase() === "component")
+            .map(record => ({
+                id: String(record.componentId || "").trim() || createId("component"),
+                name: String(record.componentName || "").trim(),
+                ru: asNumber(record.componentRU, 1),
+                position: asNumber(record.componentPosition, 1),
+                typeClass: String(record.typeClass || "default-component").trim(),
+                depth: asNumber(record.depth, 0),
+                power: asNumber(record.power, 0),
+                notes: String(record.notes || "").trim(),
+                customColor: String(record.customColor || "").trim() || null
+            }));
 
-        const reader = new FileReader();
-        reader.onload = event => {
-            try {
-                const parsed = JSON.parse(event.target.result);
-                onLoad(parsed);
-            } catch (error) {
-                setNotice(`Could not load file: ${error.message}`);
-            } finally {
-                fileInput.value = "";
-            }
+        return {
+            rackHeightRU: asNumber(meta.rackHeightRU, defaultRackHeightRU),
+            currentView: String(meta.currentView || "front").trim() === "rear" ? "rear" : "front",
+            showVacantSlots: String(meta.showVacantSlots || "true").trim().toLowerCase() !== "false",
+            rackProfile: {
+                name: String(meta.rackName || "Main Rack").trim() || "Main Rack",
+                tag: String(meta.rackTag || "RACK-01").trim() || "RACK-01",
+                room: String(meta.rackRoom || "").trim(),
+                owner: String(meta.rackOwner || "").trim(),
+                rackDepthCm: asNumber(meta.rackDepthCm, 0),
+                minDepthClearanceCm: asNumber(meta.rackMinDepthClearanceCm, 0),
+                notes: String(meta.rackNotes || "").trim(),
+                totalCalculatedConsumptionW: asNumber(meta.rackTotalCalculatedConsumptionW, 0)
+            },
+            components
         };
-        reader.readAsText(file);
+    }
+
+    function libraryPayloadToCsv(payload) {
+        const rows = [];
+        (Array.isArray(payload.categories) ? payload.categories : []).forEach(category => {
+            rows.push({
+                rowType: "category",
+                categoryName: category.name || "",
+                itemName: "",
+                ru: "",
+                typeClass: "",
+                defaultDepth: "",
+                defaultPower: ""
+            });
+
+            (Array.isArray(category.items) ? category.items : []).forEach(item => {
+                rows.push({
+                    rowType: "item",
+                    categoryName: category.name || "",
+                    itemName: item.name || "",
+                    ru: asNumber(item.ru, 1),
+                    typeClass: item.typeClass || "default-component",
+                    defaultDepth: asNumber(item.defaultDepth, 0),
+                    defaultPower: asNumber(item.defaultPower, 0)
+                });
+            });
+        });
+
+        return toCsv(libraryCsvHeaders, rows);
+    }
+
+    function csvToLibraryPayload(csvText) {
+        const records = parseCsv(csvText);
+        const categoriesByName = new Map();
+
+        records.forEach(record => {
+            const rowType = String(record.rowType || "").trim().toLowerCase();
+            const categoryName = String(record.categoryName || "").trim();
+            if (!categoryName) {
+                return;
+            }
+
+            if (!categoriesByName.has(categoryName)) {
+                categoriesByName.set(categoryName, {
+                    name: categoryName,
+                    items: []
+                });
+            }
+
+            if (rowType === "item") {
+                categoriesByName.get(categoryName).items.push({
+                    name: String(record.itemName || "").trim(),
+                    ru: asNumber(record.ru, 1),
+                    typeClass: String(record.typeClass || "default-component").trim() || "default-component",
+                    defaultDepth: asNumber(record.defaultDepth, 0),
+                    defaultPower: asNumber(record.defaultPower, 0)
+                });
+            }
+        });
+
+        return {
+            categories: Array.from(categoriesByName.values())
+        };
     }
 
     function setNotice(message) {
@@ -617,6 +1393,7 @@ document.addEventListener("DOMContentLoaded", () => {
         rackTagInput.value = rackTag;
         rackRoomInput.value = state.rackProfile.room || "";
         rackOwnerInput.value = state.rackProfile.owner || "";
+        rackClearanceInput.value = Number(state.rackProfile.minDepthClearanceCm) || 0;
         rackNotesInput.value = state.rackProfile.notes || "";
     }
 
@@ -643,6 +1420,8 @@ document.addEventListener("DOMContentLoaded", () => {
             tag: nextTag,
             room: rackRoomInput.value.trim(),
             owner: rackOwnerInput.value.trim(),
+            rackDepthCm: Number(state.rackProfile.rackDepthCm) || 0,
+            minDepthClearanceCm: Number(rackClearanceInput.value) || 0,
             notes: rackNotesInput.value.trim()
         };
 
@@ -666,6 +1445,7 @@ document.addEventListener("DOMContentLoaded", () => {
         locatedRack.rack.name = state.rackProfile.name;
         locatedRack.rack.tag = state.rackProfile.tag;
         locatedRack.rack.heightRU = state.rackHeightRU;
+        locatedRack.rack.depth = Number(state.rackProfile.rackDepthCm) || locatedRack.rack.depth || 0;
         locatedRack.rack.notes = state.rackProfile.notes || locatedRack.rack.notes || "";
         locatedRack.rack.updatedAt = new Date().toISOString();
         locatedRack.rack.plannerState = {
@@ -700,6 +1480,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 tag: locatedRack.rack.tag || "RACK-01",
                 room: `${locatedRack.room.name || ""} (${locatedRack.room.building || ""} / ${locatedRack.room.floor || ""})`,
                 owner: "",
+                rackDepthCm: Number(locatedRack.rack.depth) || 0,
+                minDepthClearanceCm: Number(locatedRack.rack.plannerState?.rackProfile?.minDepthClearanceCm) || 0,
                 notes: locatedRack.rack.notes || ""
             },
             components: []
@@ -711,8 +1493,14 @@ document.addEventListener("DOMContentLoaded", () => {
         setNotice(`Loaded ${locatedRack.rack.name} from catalog.`);
     }
 
-    function saveLibraryToFile() {
-        downloadJson("rackplanner-library.json", {
+    async function saveLibraryToFile() {
+        const format = await chooseDataFormat("Export");
+        if (!format) {
+            setNotice("Library export canceled.");
+            return;
+        }
+
+        const payload = {
             version: 1,
             savedAt: new Date().toISOString(),
             categories: state.libraryCategories.map(category => ({
@@ -725,8 +1513,17 @@ document.addEventListener("DOMContentLoaded", () => {
                     defaultPower: item.defaultPower
                 }))
             }))
-        });
-        setNotice("Library file exported.");
+        };
+
+        const isCsv = format === "csv";
+        const content = isCsv ? libraryPayloadToCsv(payload) : JSON.stringify(payload, null, 2);
+        const saved = await saveTextFile(
+            `rackplanner-library.${isCsv ? "csv" : "json"}`,
+            content,
+            isCsv ? "text/csv" : "application/json",
+            isCsv ? ".csv" : ".json"
+        );
+        setNotice(saved ? `Library exported as ${format.toUpperCase()}.` : "Library export canceled.");
     }
 
     function loadLibraryFromFile(payload) {
@@ -740,17 +1537,38 @@ document.addEventListener("DOMContentLoaded", () => {
         setNotice(`Library loaded with ${state.libraryCategories.length} categories.`);
     }
 
-    function saveRackToFile() {
-        downloadJson("rackplanner-rack.json", {
+    async function saveRackToFile() {
+        const format = await chooseDataFormat("Export");
+        if (!format) {
+            setNotice("Rack export canceled.");
+            return;
+        }
+
+        const totalPowerW = getTotalPowerConsumption();
+
+        const payload = {
             version: 1,
             savedAt: new Date().toISOString(),
             rackHeightRU: state.rackHeightRU,
             currentView: state.currentView,
-            rackProfile: state.rackProfile,
+            rackProfile: {
+                ...state.rackProfile,
+                totalCalculatedConsumptionW: totalPowerW
+            },
+            totalCalculatedConsumptionW: totalPowerW,
             showVacantSlots: state.showVacantSlots,
             components: state.rackComponents
-        });
-        setNotice("Rack file exported.");
+        };
+
+        const isCsv = format === "csv";
+        const content = isCsv ? rackPayloadToCsv(payload) : JSON.stringify(payload, null, 2);
+        const saved = await saveTextFile(
+            `rackplanner-rack.${isCsv ? "csv" : "json"}`,
+            content,
+            isCsv ? "text/csv" : "application/json",
+            isCsv ? ".csv" : ".json"
+        );
+        setNotice(saved ? `Rack exported as ${format.toUpperCase()}.` : "Rack export canceled.");
     }
 
     function loadRackFromFile(payload) {
@@ -775,6 +1593,8 @@ document.addEventListener("DOMContentLoaded", () => {
             tag: String(payload.rackProfile?.tag || "RACK-01").trim() || "RACK-01",
             room: String(payload.rackProfile?.room || "").trim(),
             owner: String(payload.rackProfile?.owner || "").trim(),
+            rackDepthCm: Number(payload.rackProfile?.rackDepthCm) || 0,
+            minDepthClearanceCm: Number(payload.rackProfile?.minDepthClearanceCm) || 0,
             notes: String(payload.rackProfile?.notes || "").trim()
         };
         state.showVacantSlots = payload.showVacantSlots !== false;
@@ -789,6 +1609,39 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderStatus() {
         const usedUnitsRU = getUsedUnitsRU();
         const freeUnitsRU = state.rackHeightRU - usedUnitsRU;
+        const totalPowerW = getTotalPowerConsumption();
+        const frontUsedRU = state.rackSlots.reduce((sum, slot) => sum + (slot.front ? 1 : 0), 0);
+        const frontUsagePercent = state.rackHeightRU > 0
+            ? Math.round((frontUsedRU / state.rackHeightRU) * 100)
+            : 0;
+
+        const maxDepthCm = Math.max(...state.rackComponents.map(component => Number(component.depth) || 0), 1);
+        const depthUsageUnits = state.rackComponents.reduce((sum, component) => {
+            return sum + ((Number(component.depth) || 0) * (Number(component.ru) || 1));
+        }, 0);
+        const rearDepthUsagePercent = state.rackHeightRU > 0
+            ? Math.round((depthUsageUnits / (state.rackHeightRU * maxDepthCm)) * 100)
+            : 0;
+
+        const frontUsagePercentSafe = Math.max(0, Math.min(frontUsagePercent, 100));
+        const rearDepthUsagePercentSafe = Math.max(0, Math.min(rearDepthUsagePercent, 100));
+
+        function getUsageScaleClass(percentValue) {
+            return percentValue > 80
+                ? "is-red"
+                : percentValue > 50
+                    ? "is-orange"
+                    : "is-green";
+        }
+
+        const frontUsageScaleClass = getUsageScaleClass(frontUsagePercentSafe);
+        const rearUsageScaleClass = getUsageScaleClass(rearDepthUsagePercentSafe);
+        const usageSummaryPercent = Math.max(frontUsagePercentSafe, rearDepthUsagePercentSafe);
+        const usageScaleClass = usageSummaryPercent > 80
+            ? "is-red"
+            : usageSummaryPercent > 50
+                ? "is-orange"
+                : "is-green";
         const activeViewText = state.currentView === "front" ? "Front" : "Rear";
         const rackName = state.rackProfile.name || "Main Rack";
         const rackTag = state.rackProfile.tag || "RACK-01";
@@ -797,18 +1650,41 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.classList.toggle("view-front", state.currentView === "front");
         document.body.classList.toggle("view-rear", state.currentView === "rear");
         viewModeBadgeEl.textContent = `${activeViewText.toUpperCase()} SIDE`;
+        if (rackStageHeadingEl) {
+            rackStageHeadingEl.textContent = `Active Side: ${activeViewText}`;
+        }
 
         rackInfoEl.innerHTML = `
-            <div><strong>${rackName}</strong> [${rackTag}]</div>
-            <div>${locationLine || "No room/owner set yet."}</div>
-            <div>Total Rack Size: ${state.rackHeightRU} RU</div>
-            <div>Installed: ${usedUnitsRU} RU, Vacant: ${freeUnitsRU} RU</div>
-            <div>Active Side: ${activeViewText}</div>
+            <div class="rack-info-grid">
+                <div class="rack-info-col rack-info-col--text">
+                    <div><strong>${rackName}</strong> [${rackTag}]</div>
+                    <div>${locationLine || "No room/owner set yet."}</div>
+                    <div>Total Rack Size: ${state.rackHeightRU} RU</div>
+                    <div>Installed: ${usedUnitsRU} RU, Vacant: ${freeUnitsRU} RU</div>
+                    <div>Total Calculated Consumption: ${totalPowerW} W</div>
+                </div>
+                <div class="rack-info-col rack-info-col--usage">
+                    <div class="rack-usage-wrap">
+                        <div class="rack-usage-title">Overall Usage (max of front/rear): ${usageSummaryPercent}%</div>
+                        <div class="rack-usage-bar">
+                            <div class="rack-usage-fill ${usageScaleClass}" style="width: ${usageSummaryPercent}%;"></div>
+                        </div>
+                        <div class="rack-usage-title">Front Side Usage (RU): ${frontUsagePercentSafe}%</div>
+                        <div class="rack-usage-bar">
+                            <div class="rack-usage-fill ${frontUsageScaleClass}" style="width: ${frontUsagePercentSafe}%;"></div>
+                        </div>
+                        <div class="rack-usage-title">Rear Side Usage (Depth): ${rearDepthUsagePercentSafe}%</div>
+                        <div class="rack-usage-bar">
+                            <div class="rack-usage-fill ${rearUsageScaleClass}" style="width: ${rearDepthUsagePercentSafe}%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="message-banner">${state.notice}</div>
         `;
         viewLegendEl.textContent = state.currentView === "front"
-            ? "Front view: every placed component also reserves the rear face."
-            : "Rear view: showing the same occupancy model from the rear face.";
+            ? "Front view: showing components mounted on the front face."
+            : "Rear view: rear-side placement is allowed when rack depth and clearance permit it.";
         toggleVacantSlotsButton.textContent = state.showVacantSlots ? "Hide Vacant Slots" : "Show Vacant Slots";
         toggleViewButton.textContent = state.currentView === "front" ? "Switch to Rear View" : "Switch to Front View";
     }
@@ -823,7 +1699,9 @@ document.addEventListener("DOMContentLoaded", () => {
             const slotLabelRight = document.createElement("div");
             const slotIndex = position - 1;
             const slotTop = rackPositionToTop(position, rackUnitHeightRU);
-            const isVacant = !state.rackSlots[slotIndex].front && !state.rackSlots[slotIndex].rear;
+            const isVacant = state.currentView === "front"
+                ? !state.rackSlots[slotIndex].front
+                : !state.rackSlots[slotIndex].rear;
 
             slot.className = `rack-slot${state.showVacantSlots && isVacant ? " is-vacant" : ""}`;
             slot.style.top = `${slotTop}px`;
@@ -850,18 +1728,35 @@ document.addEventListener("DOMContentLoaded", () => {
             rackEl.appendChild(highlight);
         }
 
+        getBlockedOppositeFaceComponents()
+            .slice()
+            .sort((left, right) => right.position - left.position)
+            .forEach(component => {
+                const blockedEl = document.createElement("div");
+                const textEl = document.createElement("span");
+
+                blockedEl.className = "rack-component rack-component--blocked";
+                blockedEl.style.top = `${rackPositionToTop(component.position, component.ru)}px`;
+                blockedEl.style.height = `${component.ru * rackUnitPixelHeight}px`;
+
+                textEl.className = "rack-component__blocked-text";
+                textEl.textContent = `Blocked by: ${component.name}`;
+
+                blockedEl.appendChild(textEl);
+                rackEl.appendChild(blockedEl);
+            });
+
         state.rackComponents
             .slice()
+            .filter(component => (component.face || "front") === state.currentView)
             .sort((left, right) => right.position - left.position)
             .forEach(component => {
                 const componentEl = document.createElement("div");
                 const topRow = document.createElement("div");
                 const bottomRow = document.createElement("div");
                 const nameEl = document.createElement("span");
-                const rangeEl = document.createElement("span");
                 const depthEl = document.createElement("span");
                 const metaEl = document.createElement("span");
-                const faceEl = document.createElement("span");
 
                 componentEl.className = `rack-component ${component.typeClass || "default-component"}`;
                 componentEl.style.top = `${rackPositionToTop(component.position, component.ru)}px`;
@@ -883,24 +1778,22 @@ document.addEventListener("DOMContentLoaded", () => {
                     componentEl.classList.add("is-selected");
                 }
 
+                componentEl.draggable = true;
+                componentEl.addEventListener("dragstart", handleRackComponentDragStart);
+                componentEl.addEventListener("dragend", clearDragPreview);
+
                 topRow.className = "rack-component__top";
                 bottomRow.className = "rack-component__bottom";
                 nameEl.className = "rack-component__name";
-                rangeEl.className = "rack-component__range";
                 depthEl.className = "rack-component__depth";
                 metaEl.className = "rack-component__meta";
-                faceEl.className = "rack-component__face";
 
                 nameEl.textContent = component.name;
-                rangeEl.textContent = getComponentRangeLabel(component);
                 depthEl.textContent = `D: ${component.depth} cm`;
-                metaEl.textContent = `${component.ru} RU${component.power ? ` | ${component.power} W` : ""}`;
-                faceEl.textContent = state.currentView === "front" ? "Front + Rear reserved" : "Rear face";
+                metaEl.textContent = `${component.ru} RU`;
 
                 topRow.appendChild(nameEl);
-                topRow.appendChild(rangeEl);
                 bottomRow.appendChild(metaEl);
-                bottomRow.appendChild(faceEl);
                 componentEl.appendChild(topRow);
                 componentEl.appendChild(depthEl);
                 componentEl.appendChild(bottomRow);
@@ -1040,6 +1933,7 @@ document.addEventListener("DOMContentLoaded", () => {
             selectedComponentFields.power.value = "";
             selectedComponentFields.typeClass.value = "";
             selectedComponentFields.color.value = "";
+            updateSelectedComponentPaletteSelection("");
             selectedComponentFields.notes.value = "";
             selectedComponentInfoEl.textContent = "Click a component in the rack to view metadata.";
             return;
@@ -1051,7 +1945,8 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedComponentFields.depth.value = selectedComponent.depth;
         selectedComponentFields.power.value = selectedComponent.power;
         selectedComponentFields.typeClass.value = selectedComponent.typeClass;
-        selectedComponentFields.color.value = selectedComponent.customColor || "#2c9874";
+        selectedComponentFields.color.value = getComponentDisplayColor(selectedComponent);
+        updateSelectedComponentPaletteSelection(selectedComponentFields.color.value);
         selectedComponentFields.notes.value = selectedComponent.notes || "";
         selectedComponentInfoEl.textContent = `Selected: ${selectedComponent.name} (${getComponentRangeLabel(selectedComponent)})`;
     }
@@ -1065,18 +1960,19 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         const requestedPosition = componentInput.position != null ? Number(componentInput.position) : null;
-        const resolvedPosition = requestedPosition || findFirstAvailablePosition(component.ru);
+        const resolvedPosition = requestedPosition || findFirstAvailablePosition(component.ru, component.face || state.currentView, component.depth);
 
         if (resolvedPosition == null) {
             setNotice("No vacant position fits that component height.");
             return false;
         }
 
-        if (!isRackPositionAvailable(resolvedPosition, component.ru)) {
+        if (!isRackPositionAvailable(resolvedPosition, component.ru, null, component.face || state.currentView, component.depth)) {
             setNotice(`U${resolvedPosition} is already occupied for that height.`);
             return false;
         }
 
+        component.face = component.face === "rear" ? "rear" : "front";
         component.position = resolvedPosition;
         state.rackComponents.push(component);
         state.selectedComponentId = component.id;
@@ -1173,7 +2069,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (!isRackPositionAvailable(nextPosition, nextRU, selectedComponent.id)) {
+        if (!isRackPositionAvailable(nextPosition, nextRU, selectedComponent.id, selectedComponent.face || "front", nextDepth)) {
             setFieldHint("selectedComponentPosition", "hintSelectedPosition", "Overlaps another component or exceeds rack height.");
             return;
         }
@@ -1229,28 +2125,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleLibraryDragStart(event) {
         const componentData = event.currentTarget.dataset.component;
-        event.dataTransfer.setData("application/json", componentData);
+        event.dataTransfer.setData("application/json", JSON.stringify({
+            source: "library",
+            component: JSON.parse(componentData)
+        }));
         event.dataTransfer.effectAllowed = "copy";
     }
 
-    function parseDraggedLibraryComponent(event) {
-        const rawData = event.dataTransfer.getData("application/json");
-        if (!rawData) {
-            return null;
-        }
+    function handleRackComponentDragStart(event) {
+        const componentEl = event.currentTarget;
+        const componentId = componentEl.dataset.componentId;
+        const componentRU = Number(componentEl.dataset.ru) || 1;
 
-        try {
-            return JSON.parse(rawData);
-        } catch (error) {
-            setNotice(`Could not parse dragged component: ${error.message}`);
-            return null;
-        }
+        event.dataTransfer.setData("application/json", JSON.stringify({
+            source: "rack",
+            componentId,
+            ru: componentRU
+        }));
+        event.dataTransfer.effectAllowed = "move";
     }
 
     function updateDragPreview(event) {
         event.preventDefault();
-        const draggedComponent = parseDraggedLibraryComponent(event);
-        if (!draggedComponent) {
+        const payload = parseDraggedPayload(event);
+        if (!payload) {
             if (state.dragPreview !== null) {
                 state.dragPreview = null;
                 renderRack();
@@ -1258,22 +2156,76 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        const ru = Number(draggedComponent.ru) || 1;
+        let ru = 1;
+        let ignoreComponentId = null;
+        let movingComponent = null;
+
+        if (payload.source === "rack") {
+            movingComponent = state.rackComponents.find(component => component.id === payload.componentId);
+            if (!movingComponent) {
+                return;
+            }
+            ru = movingComponent.ru;
+            ignoreComponentId = movingComponent.id;
+        } else {
+            ru = Number(payload.component?.ru) || 1;
+        }
+
         const position = clientYToRackPosition(event.clientY, ru);
-        const valid = isRackPositionAvailable(position, ru);
+        const valid = isRackPositionAvailable(
+            position,
+            ru,
+            ignoreComponentId,
+            payload.source === "rack" ? movingComponent.face || state.currentView : state.currentView,
+            payload.source === "rack" ? movingComponent.depth : Number(payload.component?.defaultDepth) || 0
+        );
         const prev = state.dragPreview;
 
-        if (!prev || prev.position !== position || prev.valid !== valid || prev.ru !== ru) {
-            state.dragPreview = { position, ru, valid };
+        if (!prev || prev.position !== position || prev.valid !== valid || prev.ru !== ru || prev.componentId !== ignoreComponentId) {
+            state.dragPreview = { position, ru, valid, componentId: ignoreComponentId };
             renderRack();
         }
     }
 
     function handleRackDrop(event) {
         event.preventDefault();
-        const draggedComponent = parseDraggedLibraryComponent(event);
+        const payload = parseDraggedPayload(event);
         state.dragPreview = null;
 
+        if (!payload) {
+            renderRack();
+            return;
+        }
+
+        if (payload.source === "rack") {
+            const movingComponent = state.rackComponents.find(component => component.id === payload.componentId);
+            if (!movingComponent) {
+                renderRack();
+                return;
+            }
+
+            const position = clientYToRackPosition(event.clientY, movingComponent.ru);
+            if (position === movingComponent.position) {
+                renderRack();
+                return;
+            }
+
+            const canMove = isRackPositionAvailable(position, movingComponent.ru, movingComponent.id, movingComponent.face || state.currentView, movingComponent.depth);
+            if (!canMove) {
+                setNotice("Cannot move component there because the target units are occupied.");
+                renderRack();
+                return;
+            }
+
+            movingComponent.position = position;
+            state.selectedComponentId = movingComponent.id;
+            renderAll();
+            syncActiveRackToCatalog();
+            setNotice(`${movingComponent.name} moved to ${getComponentRangeLabel(movingComponent)}.`);
+            return;
+        }
+
+        const draggedComponent = payload.component;
         if (!draggedComponent) {
             renderRack();
             return;
@@ -1284,6 +2236,7 @@ document.addEventListener("DOMContentLoaded", () => {
             name: draggedComponent.name,
             ru: Number(draggedComponent.ru) || 1,
             position,
+            face: state.currentView,
             typeClass: draggedComponent.typeClass,
             depth: Number(draggedComponent.defaultDepth) || 0,
             power: Number(draggedComponent.defaultPower) || 0
@@ -1297,44 +2250,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function clearDragPreview() {
         state.dragPreview = null;
         renderRack();
-    }
-
-    function handleCreateCustomComponent() {
-        clearFormHints("createComponentForm");
-        const name = document.getElementById("newComponentName").value.trim();
-        const ru = Number(document.getElementById("newComponentHeight").value) || 1;
-        const positionValue = document.getElementById("newComponentPosition").value;
-        const depth = Number(document.getElementById("newComponentDepth").value) || 0;
-        const power = Number(document.getElementById("newComponentPower").value) || 0;
-        const defaultColor = getDefaultColor();
-
-        if (!name) {
-            setFieldHint("newComponentName", "hintNewName", "Name is required.");
-            return;
-        }
-
-        if (positionValue) {
-            const pos = Number(positionValue);
-            if (!isRackPositionAvailable(pos, ru)) {
-                setFieldHint("newComponentPosition", "hintNewPosition", `U${pos} is already occupied — leave blank to auto-place.`);
-                return;
-            }
-        }
-
-        const placed = addComponentToRack({
-            name,
-            ru,
-            position: positionValue ? Number(positionValue) : null,
-            typeClass: "custom-component",
-            depth,
-            power,
-            customColor: defaultColor.color
-        });
-
-        if (placed) {
-            document.getElementById("newComponentName").value = "";
-            document.getElementById("newComponentPosition").value = "";
-        }
     }
 
     function handleAddLibraryComponent() {
@@ -1436,7 +2351,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function bindEvents() {
-        createComponentButton.addEventListener("click", handleCreateCustomComponent);
         addLibraryComponentButton.addEventListener("click", handleAddLibraryComponent);
         saveRackPropertiesButton.addEventListener("click", handleSaveRackProperties);
         saveSelectedComponentButton.addEventListener("click", handleSaveSelectedComponent);
@@ -1448,10 +2362,82 @@ document.addEventListener("DOMContentLoaded", () => {
         toggleViewButton.addEventListener("click", handleToggleView);
         document.getElementById("saveRackButton").addEventListener("click", saveRackToFile);
         document.getElementById("saveLibraryButton").addEventListener("click", saveLibraryToFile);
-        document.getElementById("loadRackButton").addEventListener("click", () => loadRackInput.click());
-        document.getElementById("loadLibraryButton").addEventListener("click", () => loadLibraryInput.click());
-        loadRackInput.addEventListener("change", () => loadJsonFromInput(loadRackInput, loadRackFromFile));
-        loadLibraryInput.addEventListener("change", () => loadJsonFromInput(loadLibraryInput, loadLibraryFromFile));
+        document.getElementById("loadRackButton").addEventListener("click", async () => {
+            const format = await chooseDataFormat("Import");
+            if (!format) {
+                setNotice("Rack import canceled.");
+                return;
+            }
+
+            if (window.showOpenFilePicker) {
+                try {
+                    const rawText = await openTextFileWithPicker(format);
+                    if (rawText === "") {
+                        setNotice("Rack import canceled.");
+                        return;
+                    }
+                    const payload = format === "csv" ? csvToRackPayload(rawText) : JSON.parse(rawText);
+                    loadRackFromFile(payload);
+                } catch (error) {
+                    setNotice(`Could not load rack file: ${error.message}`);
+                }
+                return;
+            }
+
+            loadRackInput.dataset.format = format;
+            loadRackInput.accept = format === "csv" ? ".csv,text/csv" : ".json,application/json";
+            loadRackInput.click();
+        });
+        document.getElementById("loadLibraryButton").addEventListener("click", async () => {
+            const format = await chooseDataFormat("Import");
+            if (!format) {
+                setNotice("Library import canceled.");
+                return;
+            }
+
+            if (window.showOpenFilePicker) {
+                try {
+                    const rawText = await openTextFileWithPicker(format);
+                    if (rawText === "") {
+                        setNotice("Library import canceled.");
+                        return;
+                    }
+                    const payload = format === "csv" ? csvToLibraryPayload(rawText) : JSON.parse(rawText);
+                    loadLibraryFromFile(payload);
+                } catch (error) {
+                    setNotice(`Could not load library file: ${error.message}`);
+                }
+                return;
+            }
+
+            loadLibraryInput.dataset.format = format;
+            loadLibraryInput.accept = format === "csv" ? ".csv,text/csv" : ".json,application/json";
+            loadLibraryInput.click();
+        });
+        loadRackInput.addEventListener("change", async () => {
+            try {
+                const format = loadRackInput.dataset.format || "json";
+                const rawText = await readTextFromInput(loadRackInput);
+                const payload = format === "csv" ? csvToRackPayload(rawText) : JSON.parse(rawText);
+                loadRackFromFile(payload);
+            } catch (error) {
+                setNotice(`Could not load rack file: ${error.message}`);
+            } finally {
+                loadRackInput.value = "";
+            }
+        });
+        loadLibraryInput.addEventListener("change", async () => {
+            try {
+                const format = loadLibraryInput.dataset.format || "json";
+                const rawText = await readTextFromInput(loadLibraryInput);
+                const payload = format === "csv" ? csvToLibraryPayload(rawText) : JSON.parse(rawText);
+                loadLibraryFromFile(payload);
+            } catch (error) {
+                setNotice(`Could not load library file: ${error.message}`);
+            } finally {
+                loadLibraryInput.value = "";
+            }
+        });
         libraryCategorySelect.addEventListener("change", () => {
             const useNewCategory = libraryCategorySelect.value === "__new__";
             libraryNewCategoryNameInput.disabled = !useNewCategory;
@@ -1483,20 +2469,20 @@ document.addEventListener("DOMContentLoaded", () => {
     const colorStorageKey = "rackplanner.default-color.v1";
 
     const colorPresets = [
-        { name: "Router", gradient: "linear-gradient(135deg, #15616d, #1d8a9b)", color: "#1d8a9b" },
-        { name: "Switch", gradient: "linear-gradient(135deg, #355c7d, #4d7ea8)", color: "#4d7ea8" },
-        { name: "Firewall", gradient: "linear-gradient(135deg, #8e3b46, #b6505d)", color: "#b6505d" },
-        { name: "Load Balancer", gradient: "linear-gradient(135deg, #5d4e75, #7e68a3)", color: "#7e68a3" },
-        { name: "Access Point", gradient: "linear-gradient(135deg, #4d6d3b, #678d52)", color: "#678d52" },
-        { name: "NAS", gradient: "linear-gradient(135deg, #7d5533, #ab7344)", color: "#ab7344" },
-        { name: "SAN", gradient: "linear-gradient(135deg, #6b3f2d, #8b5a42)", color: "#8b5a42" },
-        { name: "Web Server", gradient: "linear-gradient(135deg, #2f4858, #44708b)", color: "#44708b" },
-        { name: "Database Server", gradient: "linear-gradient(135deg, #5f0f40, #8b1e5c)", color: "#8b1e5c" },
-        { name: "App Server", gradient: "linear-gradient(135deg, #414770, #6169a8)", color: "#6169a8" },
-        { name: "UPS", gradient: "linear-gradient(135deg, #4d5d53, #708577)", color: "#708577" },
-        { name: "PDU", gradient: "linear-gradient(135deg, #6f4e37, #9a6f53)", color: "#9a6f53" },
-        { name: "Accessories", gradient: "linear-gradient(135deg, #5c6770, #7d8994)", color: "#7d8994" },
-        { name: "Custom", gradient: "linear-gradient(135deg, #1f6a52, #2c9874)", color: "#2c9874" }
+        { name: "Red", gradient: "linear-gradient(135deg, #b91c1c, #ef4444)", color: "#ef4444" },
+        { name: "Orange", gradient: "linear-gradient(135deg, #c2410c, #f97316)", color: "#f97316" },
+        { name: "Amber", gradient: "linear-gradient(135deg, #b45309, #f59e0b)", color: "#f59e0b" },
+        { name: "Yellow", gradient: "linear-gradient(135deg, #ca8a04, #eab308)", color: "#eab308" },
+        { name: "Green", gradient: "linear-gradient(135deg, #15803d, #22c55e)", color: "#22c55e" },
+        { name: "Teal", gradient: "linear-gradient(135deg, #0f766e, #14b8a6)", color: "#14b8a6" },
+        { name: "Cyan", gradient: "linear-gradient(135deg, #0e7490, #06b6d4)", color: "#06b6d4" },
+        { name: "Blue", gradient: "linear-gradient(135deg, #1d4ed8, #3b82f6)", color: "#3b82f6" },
+        { name: "Indigo", gradient: "linear-gradient(135deg, #4338ca, #6366f1)", color: "#6366f1" },
+        { name: "Violet", gradient: "linear-gradient(135deg, #6d28d9, #8b5cf6)", color: "#8b5cf6" },
+        { name: "Purple", gradient: "linear-gradient(135deg, #7e22ce, #a855f7)", color: "#a855f7" },
+        { name: "Pink", gradient: "linear-gradient(135deg, #be185d, #ec4899)", color: "#ec4899" },
+        { name: "Brown", gradient: "linear-gradient(135deg, #92400e, #b45309)", color: "#b45309" },
+        { name: "Gray", gradient: "linear-gradient(135deg, #4b5563, #9ca3af)", color: "#9ca3af" }
     ];
 
     function getDefaultColor() {
@@ -1590,6 +2576,7 @@ document.addEventListener("DOMContentLoaded", () => {
     bindEvents();
     setActiveEditor("rack");
     initializeColorPicker();
+    initializeSelectedComponentColorPalette();
     renderAll();
     loadRackFromCatalog();
 });
