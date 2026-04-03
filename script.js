@@ -606,6 +606,12 @@ document.addEventListener("DOMContentLoaded", () => {
         return typeClassColorMap[typeClass] || typeClassColorMap["default-component"];
     }
 
+    function getComponentBackground(component) {
+        const baseColor = getComponentDisplayColor(component);
+        const darkerShade = adjustBrightness(baseColor, -20);
+        return `linear-gradient(135deg, ${darkerShade}, ${baseColor})`;
+    }
+
     function updateSelectedComponentPaletteSelection(colorHex) {
         if (!selectedComponentColorPresetsEl) {
             return;
@@ -745,6 +751,22 @@ document.addEventListener("DOMContentLoaded", () => {
         return Math.max(0, Number(state.rackProfile.minDepthClearanceCm) || 0);
     }
 
+    function getComponentFace(component) {
+        return component?.face === "rear" ? "rear" : "front";
+    }
+
+    function getComponentDepthCm(component) {
+        return Math.max(0, Number(component?.depth) || 0);
+    }
+
+    function getOppositeFace(face) {
+        return face === "rear" ? "front" : "rear";
+    }
+
+    function getComponentsOnFace(face) {
+        return state.rackComponents.filter(component => getComponentFace(component) === face);
+    }
+
     function doComponentsOverlapInRU(leftComponent, rightComponent) {
         const leftEnd = leftComponent.position + leftComponent.ru - 1;
         const rightEnd = rightComponent.position + rightComponent.ru - 1;
@@ -758,12 +780,200 @@ document.addEventListener("DOMContentLoaded", () => {
             return false;
         }
 
-        return (Number(candidateComponent.depth) || 0) + (Number(existingComponent.depth) || 0) + clearanceCm <= rackDepthCm;
+        return getComponentDepthCm(candidateComponent) + getComponentDepthCm(existingComponent) + clearanceCm <= rackDepthCm;
+    }
+
+    function getRemainingRackDepthCm(component) {
+        return Math.max(0, getRackDepthCm() - getComponentDepthCm(component));
+    }
+
+    function leavesRequiredClearanceForOppositeFace(component) {
+        const rackDepthCm = getRackDepthCm();
+        const clearanceCm = getRackMinDepthClearanceCm();
+
+        if (rackDepthCm <= 0 || clearanceCm <= 0) {
+            return false;
+        }
+
+        return getRemainingRackDepthCm(component) >= clearanceCm;
+    }
+
+    function hasOverlappingComponentOnFace(component, face) {
+        return getComponentsOnFace(face).some(candidate => doComponentsOverlapInRU(component, candidate));
+    }
+
+    function getOppositeFaceDepthPairs() {
+        const pairs = [];
+
+        getComponentsOnFace("front").forEach(frontComponent => {
+            getComponentsOnFace("rear").forEach(rearComponent => {
+                if (!doComponentsOverlapInRU(frontComponent, rearComponent)) {
+                    return;
+                }
+
+                pairs.push({
+                    frontComponent,
+                    rearComponent,
+                    canShareDepth: canFacesShareDepth(frontComponent, rearComponent),
+                    topRU: Math.max(frontComponent.position, rearComponent.position),
+                    bottomRU: Math.min(
+                        frontComponent.position + frontComponent.ru - 1,
+                        rearComponent.position + rearComponent.ru - 1
+                    )
+                });
+            });
+        });
+
+        return pairs;
+    }
+
+    function getConflictingOppositeFaceComponentIds(depthPairs = getOppositeFaceDepthPairs()) {
+        const conflictSet = new Set();
+
+        depthPairs.forEach(pair => {
+            if (pair.canShareDepth) {
+                return;
+            }
+
+            conflictSet.add(pair.frontComponent.id);
+            conflictSet.add(pair.rearComponent.id);
+        });
+
+        return conflictSet;
+    }
+
+    function formatClearanceCm(value) {
+        const normalizedValue = Number(value) || 0;
+        return Number.isInteger(normalizedValue)
+            ? String(normalizedValue)
+            : normalizedValue.toFixed(1);
+    }
+
+    function describeConflictingComponents(conflicts) {
+        const names = Array.from(new Set(conflicts.map(conflict => conflict.component.name).filter(Boolean)));
+
+        if (names.length === 0) {
+            return "the opposite-face components";
+        }
+
+        if (names.length === 1) {
+            return names[0];
+        }
+
+        if (names.length === 2) {
+            return `${names[0]} and ${names[1]}`;
+        }
+
+        return `${names[0]}, ${names[1]}, and ${names.length - 2} more`;
+    }
+
+    function getPlacementAnalysis(position, componentHeightRU, componentIdToIgnore = null, face = state.currentView, depth = 0) {
+        const candidateComponent = {
+            position,
+            ru: componentHeightRU,
+            face,
+            depth
+        };
+        const analysis = {
+            candidateComponent,
+            isOutOfBounds: position < 1 || position + componentHeightRU - 1 > state.rackHeightRU,
+            sameFaceConflict: null,
+            depthConflicts: [],
+            worstDepthConflict: null,
+            hasSameFaceConflict: false,
+            hasHardDepthConflict: false,
+            hasWarningDepthConflict: false,
+            canPlace: false,
+            canPlaceWithoutPrompt: false
+        };
+
+        if (analysis.isOutOfBounds) {
+            return analysis;
+        }
+
+        state.rackComponents.forEach(component => {
+            if (component.id === componentIdToIgnore) {
+                return;
+            }
+
+            if (!doComponentsOverlapInRU(candidateComponent, component)) {
+                return;
+            }
+
+            if (getComponentFace(component) === face) {
+                analysis.sameFaceConflict = component;
+                analysis.hasSameFaceConflict = true;
+                return;
+            }
+
+            const freeClearanceCm = getRackDepthCm() - getComponentDepthCm(candidateComponent) - getComponentDepthCm(component);
+            const meetsMinimumClearance = canFacesShareDepth(candidateComponent, component);
+            const isHardDepthConflict = freeClearanceCm <= 0;
+            const isWarningDepthConflict = !isHardDepthConflict && !meetsMinimumClearance;
+            const conflict = {
+                component,
+                freeClearanceCm,
+                meetsMinimumClearance,
+                isHardDepthConflict,
+                isWarningDepthConflict
+            };
+
+            analysis.depthConflicts.push(conflict);
+
+            if (!analysis.worstDepthConflict || conflict.freeClearanceCm < analysis.worstDepthConflict.freeClearanceCm) {
+                analysis.worstDepthConflict = conflict;
+            }
+        });
+
+        analysis.hasHardDepthConflict = analysis.depthConflicts.some(conflict => conflict.isHardDepthConflict);
+        analysis.hasWarningDepthConflict = analysis.depthConflicts.some(conflict => conflict.isWarningDepthConflict);
+        analysis.canPlace = !analysis.hasSameFaceConflict && !analysis.hasHardDepthConflict;
+        analysis.canPlaceWithoutPrompt = analysis.canPlace && !analysis.hasWarningDepthConflict;
+
+        return analysis;
+    }
+
+    function buildDepthConflictMessage(componentName, analysis) {
+        const conflictNames = describeConflictingComponents(analysis.depthConflicts);
+        const requiredClearanceCm = getRackMinDepthClearanceCm();
+        const availableClearanceCm = analysis.worstDepthConflict
+            ? formatClearanceCm(analysis.worstDepthConflict.freeClearanceCm)
+            : "0";
+
+        return `${componentName} leaves ${availableClearanceCm} cm clearance with ${conflictNames}. Minimum depth clearance is ${requiredClearanceCm} cm.`;
+    }
+
+    function resolvePlacementAttempt(componentName, analysis) {
+        if (analysis.isOutOfBounds) {
+            setNotice("Component exceeds rack height.");
+            return false;
+        }
+
+        if (analysis.hasSameFaceConflict) {
+            setNotice(`U${analysis.candidateComponent.position} is already occupied on the ${getComponentFace(analysis.sameFaceConflict)} side.`);
+            return false;
+        }
+
+        if (analysis.hasHardDepthConflict) {
+            setNotice(`Cannot place ${componentName}. ${buildDepthConflictMessage(componentName, analysis)} Clearance must stay above 0 cm.`);
+            return false;
+        }
+
+        if (!analysis.hasWarningDepthConflict) {
+            return true;
+        }
+
+        const confirmed = window.confirm(`${buildDepthConflictMessage(componentName, analysis)} Continue anyway?`);
+        if (!confirmed) {
+            setNotice(`Placement canceled for ${componentName}.`);
+            return false;
+        }
+
+        return true;
     }
 
     function getBlockedOppositeFaceComponents() {
         const activeFace = state.currentView;
-        const oppositeFace = activeFace === "front" ? "rear" : "front";
         const rackDepthCm = getRackDepthCm();
         const clearanceCm = getRackMinDepthClearanceCm();
 
@@ -771,22 +981,12 @@ document.addEventListener("DOMContentLoaded", () => {
             return [];
         }
 
-        return state.rackComponents.filter(component => {
-            if ((component.face || "front") !== oppositeFace) {
+        return getComponentsOnFace(getOppositeFace(activeFace)).filter(component => {
+            if (leavesRequiredClearanceForOppositeFace(component)) {
                 return false;
             }
 
-            const freeDepthCm = rackDepthCm - (Number(component.depth) || 0);
-            if (freeDepthCm >= clearanceCm) {
-                return false;
-            }
-
-            return !state.rackComponents.some(candidate => {
-                if ((candidate.face || "front") !== activeFace) {
-                    return false;
-                }
-                return doComponentsOverlapInRU(component, candidate);
-            });
+            return !hasOverlappingComponentOnFace(component, activeFace);
         });
     }
 
@@ -831,32 +1031,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function isRackPositionAvailable(position, componentHeightRU, componentIdToIgnore = null, face = state.currentView, depth = 0) {
-        if (position < 1 || position + componentHeightRU - 1 > state.rackHeightRU) {
-            return false;
-        }
-
-        const candidateComponent = {
-            position,
-            ru: componentHeightRU,
-            face,
-            depth
-        };
-
-        return !state.rackComponents.some(component => {
-            if (component.id === componentIdToIgnore) {
-                return false;
-            }
-
-            if (!doComponentsOverlapInRU(candidateComponent, component)) {
-                return false;
-            }
-
-            if ((component.face || "front") === face) {
-                return true;
-            }
-
-            return !canFacesShareDepth(candidateComponent, component);
-        });
+        return getPlacementAnalysis(position, componentHeightRU, componentIdToIgnore, face, depth).canPlace;
     }
 
     function findFirstAvailablePosition(componentHeightRU, face = state.currentView, depth = 0) {
@@ -1259,12 +1434,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 componentEl.className = `rack-component ${component.typeClass || "default-component"}`;
                 componentEl.style.top = `${rackPositionToTop(component.position, component.ru)}px`;
                 componentEl.style.height = `${component.ru * rackUnitPixelHeight}px`;
-                
-                // Apply custom color if set
-                if (component.customColor) {
-                    const darkerShade = adjustBrightness(component.customColor, -20);
-                    componentEl.style.background = `linear-gradient(135deg, ${component.customColor}, ${darkerShade})`;
-                }
+                componentEl.style.background = getComponentBackground(component);
                 
                 componentEl.dataset.componentId = component.id;
                                 componentEl.dataset.ru = component.ru;
@@ -1305,7 +1475,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!sideViewEl) return;
 
         const rackDepthCm = getRackDepthCm();
-        const clearanceCm = getRackMinDepthClearanceCm();
         const SIDE_VIEW_BASE_DEPTH_CM = 100;
         const SIDE_VIEW_BASE_WIDTH_PX = 200;
         const SIDE_VIEW_MIN_WIDTH_PX = 140;
@@ -1332,37 +1501,17 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // Clearance zone band (if set)
-        if (clearanceCm > 0) {
-            const bandLeft = (rackDepthCm - clearanceCm) / rackDepthCm * sideViewWidthPx;
-            const bandWidth = clearanceCm / rackDepthCm * sideViewWidthPx;
-            const clearanceEl = document.createElement("div");
-            clearanceEl.className = "rack-side-clearance";
-            clearanceEl.style.left = `${bandLeft}px`;
-            clearanceEl.style.width = `${bandWidth}px`;
-            sideViewEl.appendChild(clearanceEl);
-        }
-
-        const frontComponents = state.rackComponents.filter(c => (c.face || "front") === "front");
-        const rearComponents = state.rackComponents.filter(c => (c.face || "front") === "rear");
-
-        // Determine which components are in a depth conflict
-        const conflictSet = new Set();
-        frontComponents.forEach(fc => {
-            rearComponents.forEach(rc => {
-                if (doComponentsOverlapInRU(fc, rc) && !canFacesShareDepth(fc, rc)) {
-                    conflictSet.add(fc.id);
-                    conflictSet.add(rc.id);
-                }
-            });
-        });
+        const frontComponents = getComponentsOnFace("front");
+        const rearComponents = getComponentsOnFace("rear");
+        const depthPairs = getOppositeFaceDepthPairs();
+        const conflictSet = getConflictingOppositeFaceComponentIds(depthPairs);
 
         // Render components (rear first so front renders on top)
         [...rearComponents, ...frontComponents].forEach(component => {
-            const depthCm = Number(component.depth) || 0;
+            const depthCm = getComponentDepthCm(component);
             if (depthCm <= 0) return;
 
-            const isFront = (component.face || "front") === "front";
+            const isFront = getComponentFace(component) === "front";
             const el = document.createElement("div");
             const top = rackPositionToTop(component.position, component.ru);
             const height = component.ru * rackUnitPixelHeight - 2;
@@ -1379,6 +1528,8 @@ document.addEventListener("DOMContentLoaded", () => {
             el.style.top = `${top}px`;
             el.style.height = `${height}px`;
             el.style.width = `${widthPx}px`;
+            el.style.background = getComponentBackground(component);
+            el.dataset.componentId = component.id;
             if (isFront) {
                 el.style.left = "0";
             } else {
@@ -1397,26 +1548,29 @@ document.addEventListener("DOMContentLoaded", () => {
             sideViewEl.appendChild(el);
         });
 
-        // Render overlap zones where front+rear physically collide
-        frontComponents.forEach(fc => {
-            rearComponents.forEach(rc => {
-                if (!doComponentsOverlapInRU(fc, rc) || canFacesShareDepth(fc, rc)) return;
-                const frontDepth = Number(fc.depth) || 0;
-                const rearDepth = Number(rc.depth) || 0;
-                const overlapLeft = Math.round((rackDepthCm - rearDepth) / rackDepthCm * sideViewWidthPx);
-                const overlapRight = Math.round(frontDepth / rackDepthCm * sideViewWidthPx);
-                if (overlapRight <= overlapLeft) return;
+        depthPairs.forEach(pair => {
+            const frontDepth = getComponentDepthCm(pair.frontComponent);
+            const rearDepth = getComponentDepthCm(pair.rearComponent);
+            const frontRight = Math.round((frontDepth / rackDepthCm) * sideViewWidthPx);
+            const rearLeft = Math.round(((rackDepthCm - rearDepth) / rackDepthCm) * sideViewWidthPx);
+            const sharedTop = rackPositionToTop(pair.topRU, 1);
+            const sharedHeight = (pair.bottomRU - pair.topRU + 1) * rackUnitPixelHeight - 2;
 
-                const topRU = Math.max(fc.position, rc.position);
-                const bottomRU = Math.min(fc.position + fc.ru - 1, rc.position + rc.ru - 1);
-                const overlapEl = document.createElement("div");
-                overlapEl.className = "rack-side-overlap";
-                overlapEl.style.top = `${rackPositionToTop(topRU, 1)}px`;
-                overlapEl.style.height = `${(bottomRU - topRU + 1) * rackUnitPixelHeight - 2}px`;
-                overlapEl.style.left = `${overlapLeft}px`;
-                overlapEl.style.width = `${overlapRight - overlapLeft}px`;
-                sideViewEl.appendChild(overlapEl);
-            });
+            if (pair.canShareDepth) {
+                return;
+            }
+
+            if (frontRight <= rearLeft) {
+                return;
+            }
+
+            const overlapEl = document.createElement("div");
+            overlapEl.className = "rack-side-overlap";
+            overlapEl.style.top = `${sharedTop}px`;
+            overlapEl.style.height = `${sharedHeight}px`;
+            overlapEl.style.left = `${rearLeft}px`;
+            overlapEl.style.width = `${frontRight - rearLeft}px`;
+            sideViewEl.appendChild(overlapEl);
         });
     }
 
@@ -1586,8 +1740,8 @@ document.addEventListener("DOMContentLoaded", () => {
             return false;
         }
 
-        if (!isRackPositionAvailable(resolvedPosition, component.ru, null, component.face || state.currentView, component.depth)) {
-            setNotice(`U${resolvedPosition} is already occupied for that height.`);
+        const placementAnalysis = getPlacementAnalysis(resolvedPosition, component.ru, null, component.face || state.currentView, component.depth);
+        if (!resolvePlacementAttempt(component.name, placementAnalysis)) {
             return false;
         }
 
@@ -1639,6 +1793,7 @@ document.addEventListener("DOMContentLoaded", () => {
         setActiveEditor("component");
         state.selectedComponentId = componentId;
         renderRack();
+        renderSideView();
         renderSelectedComponentPanel();
         setNotice(`Selected ${component.name} for editing.`);
     }
@@ -1689,8 +1844,18 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        if (!isRackPositionAvailable(nextPosition, nextRU, selectedComponent.id, selectedComponent.face || "front", nextDepth)) {
-            setFieldHint("selectedComponentPosition", "hintSelectedPosition", "Overlaps another component or exceeds rack height.");
+        const placementAnalysis = getPlacementAnalysis(nextPosition, nextRU, selectedComponent.id, selectedComponent.face || "front", nextDepth);
+        if (placementAnalysis.isOutOfBounds) {
+            setFieldHint("selectedComponentPosition", "hintSelectedPosition", "Exceeds rack height.");
+            return;
+        }
+
+        if (placementAnalysis.hasSameFaceConflict) {
+            setFieldHint("selectedComponentPosition", "hintSelectedPosition", "Overlaps another component on the same side.");
+            return;
+        }
+
+        if (!resolvePlacementAttempt(nextName, placementAnalysis)) {
             return;
         }
 
@@ -1714,6 +1879,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.selectedComponentId = null;
         setActiveEditor("rack");
         renderRack();
+        renderSideView();
         renderSelectedComponentPanel();
         setNotice("Selection cleared.");
     }
@@ -1831,9 +1997,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const canMove = isRackPositionAvailable(position, movingComponent.ru, movingComponent.id, movingComponent.face || state.currentView, movingComponent.depth);
-            if (!canMove) {
-                setNotice("Cannot move component there because the target units are occupied.");
+            const placementAnalysis = getPlacementAnalysis(position, movingComponent.ru, movingComponent.id, movingComponent.face || state.currentView, movingComponent.depth);
+            if (!resolvePlacementAttempt(movingComponent.name, placementAnalysis)) {
                 renderRack();
                 return;
             }
@@ -2026,17 +2191,7 @@ document.addEventListener("DOMContentLoaded", () => {
             renderSideView();
 
             // --- Compute conflict set ---
-            const frontComponents = state.rackComponents.filter(c => (c.face || "front") === "front");
-            const rearComponents  = state.rackComponents.filter(c => (c.face || "front") === "rear");
-            const conflictSet = new Set();
-            frontComponents.forEach(fc => {
-                rearComponents.forEach(rc => {
-                    if (doComponentsOverlapInRU(fc, rc) && !canFacesShareDepth(fc, rc)) {
-                        conflictSet.add(fc.id);
-                        conflictSet.add(rc.id);
-                    }
-                });
-            });
+            const conflictSet = getConflictingOppositeFaceComponentIds();
 
             const usedRU     = getUsedUnitsRU();
             const totalPower = getTotalPowerConsumption();
@@ -2455,6 +2610,18 @@ document.addEventListener("DOMContentLoaded", () => {
             }
             handleSelectRackComponent(componentEl.dataset.componentId);
         });
+
+        const sideViewEl = document.getElementById("rackSideView");
+        if (sideViewEl) {
+            sideViewEl.addEventListener("click", event => {
+                const componentEl = event.target.closest(".rack-side-component");
+                if (!componentEl) {
+                    return;
+                }
+
+                handleSelectRackComponent(componentEl.dataset.componentId);
+            });
+        }
     }
 
     const colorStorageKey = "rackplanner.default-color.v1";

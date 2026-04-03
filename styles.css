@@ -1052,6 +1052,7 @@ input.is-invalid {
     display: flex;
     align-items: center;
     overflow: hidden;
+    cursor: pointer;
     transition: opacity 0.15s;
 }
 
@@ -1109,17 +1110,6 @@ input.is-invalid {
     z-index: 5;
     border: 1px solid rgba(255, 60, 60, 0.9);
     border-radius: 2px;
-}
-
-.rack-side-clearance {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    background: rgba(255, 200, 50, 0.06);
-    border-left: 1px dashed rgba(255, 200, 50, 0.35);
-    border-right: 1px dashed rgba(255, 200, 50, 0.35);
-    pointer-events: none;
-    z-index: 1;
 }
 
 .rack-side-placeholder {
