@@ -38,11 +38,20 @@ const rackCsvHeaders = [
     "componentName",
     "componentRU",
     "componentPosition",
+    "componentFace",
     "typeClass",
     "depth",
     "power",
     "notes",
-    "customColor"
+    "customColor",
+    "sideItemId",
+    "sideItemView",
+    "sideItemSide",
+    "sideItemType",
+    "sideItemName",
+    "sideItemNotes",
+    "sideItemOrder",
+    "sideItemCustomColor"
 ];
 
 const libraryCsvHeaders = [
@@ -177,11 +186,20 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
             componentName: "",
             componentRU: "",
             componentPosition: "",
+            componentFace: "",
             typeClass: "",
             depth: "",
             power: "",
             notes: "",
-            customColor: ""
+            customColor: "",
+            sideItemId: "",
+            sideItemView: "",
+            sideItemSide: "",
+            sideItemType: "",
+            sideItemName: "",
+            sideItemNotes: "",
+            sideItemOrder: "",
+            sideItemCustomColor: ""
         }
     ];
 
@@ -203,11 +221,60 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
             componentName: component.name || "",
             componentRU: asNumber(component.ru, 1),
             componentPosition: asNumber(component.position, 1),
+            componentFace: component.face === "rear" ? "rear" : "front",
             typeClass: component.typeClass || "default-component",
             depth: asNumber(component.depth, 0),
             power: asNumber(component.power, 0),
             notes: component.notes || "",
-            customColor: component.customColor || ""
+            customColor: component.customColor || "",
+            sideItemId: "",
+            sideItemView: "",
+            sideItemSide: "",
+            sideItemType: "",
+            sideItemName: "",
+            sideItemNotes: "",
+            sideItemOrder: "",
+            sideItemCustomColor: ""
+        });
+    });
+
+    const sideCompartmentItems = payload.sideCompartmentItems || {};
+    ["front", "rear"].forEach(view => {
+        ["left", "right"].forEach(side => {
+            (Array.isArray(sideCompartmentItems?.[view]?.[side]) ? sideCompartmentItems[view][side] : []).forEach(item => {
+                rows.push({
+                    rowType: "sideItem",
+                    rackHeightRU: "",
+                    currentView: "",
+                    showVacantSlots: "",
+                    rackName: "",
+                    rackTag: "",
+                    rackRoom: "",
+                    rackOwner: "",
+                    rackDepthCm: "",
+                    rackMinDepthClearanceCm: "",
+                    rackNotes: "",
+                    rackTotalCalculatedConsumptionW: "",
+                    componentId: "",
+                    componentName: "",
+                    componentRU: "",
+                    componentPosition: "",
+                    componentFace: "",
+                    typeClass: "",
+                    depth: "",
+                    power: "",
+                    notes: "",
+                    customColor: "",
+                    sideItemId: item.id || createId("side-item"),
+                    sideItemView: view,
+                    sideItemSide: side,
+                    sideItemType: item.type || "custom-label",
+                    sideItemName: item.name || "",
+                    sideItemNotes: item.notes || "",
+                    sideItemOrder: asNumber(item.order, 1),
+                    sideItemCustomColor: item.customColor || ""
+                });
+            });
         });
     });
 
@@ -224,12 +291,35 @@ function csvToRackPayload(csvText, defaultRackHeightRU = 42) {
             name: String(record.componentName || "").trim(),
             ru: asNumber(record.componentRU, 1),
             position: asNumber(record.componentPosition, 1),
+            face: String(record.componentFace || "front").trim() === "rear" ? "rear" : "front",
             typeClass: String(record.typeClass || "default-component").trim(),
             depth: asNumber(record.depth, 0),
             power: asNumber(record.power, 0),
             notes: String(record.notes || "").trim(),
             customColor: String(record.customColor || "").trim() || null
         }));
+
+    const sideCompartmentItems = {
+        front: { left: [], right: [] },
+        rear: { left: [], right: [] }
+    };
+
+    records
+        .filter(record => String(record.rowType || "").trim().toLowerCase() === "sideitem")
+        .forEach(record => {
+            const view = String(record.sideItemView || "front").trim() === "rear" ? "rear" : "front";
+            const side = String(record.sideItemSide || "left").trim() === "right" ? "right" : "left";
+            sideCompartmentItems[view][side].push({
+                id: String(record.sideItemId || "").trim() || createId("side-item"),
+                view,
+                side,
+                type: String(record.sideItemType || "custom-label").trim() || "custom-label",
+                name: String(record.sideItemName || "").trim(),
+                notes: String(record.sideItemNotes || "").trim(),
+                order: asNumber(record.sideItemOrder, sideCompartmentItems[view][side].length + 1),
+                customColor: String(record.sideItemCustomColor || "").trim() || null
+            });
+        });
 
     return {
         rackHeightRU: asNumber(meta.rackHeightRU, defaultRackHeightRU),
@@ -245,7 +335,8 @@ function csvToRackPayload(csvText, defaultRackHeightRU = 42) {
             notes: String(meta.rackNotes || "").trim(),
             totalCalculatedConsumptionW: asNumber(meta.rackTotalCalculatedConsumptionW, 0)
         },
-        components
+        components,
+        sideCompartmentItems
     };
 }
 

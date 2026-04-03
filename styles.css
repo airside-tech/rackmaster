@@ -193,6 +193,17 @@ textarea:focus {
     font-size: 13px;
 }
 
+.planner-notice {
+    border-radius: 12px;
+    border: 1px solid rgba(31, 106, 82, 0.2);
+    background: rgba(31, 106, 82, 0.07);
+    color: var(--ink);
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 68px;
+}
+
 .panel-block {
     background: var(--panel);
     border: 1px solid var(--panel-border);
@@ -214,6 +225,28 @@ textarea:focus {
 .stack-form {
     display: grid;
     gap: 10px;
+}
+
+.stack-form--top-gap {
+    margin-top: 10px;
+}
+
+.panel-block__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.panel-block__title {
+    margin: 0;
+}
+
+.panel-toggle {
+    padding: 7px 12px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 .inline-form {
@@ -370,10 +403,13 @@ textarea:focus {
 }
 
 .rack-frame {
-    width: 380px;
-    min-width: 380px;
-    max-width: 380px;
-    flex: 0 0 380px;
+    --rack-core-width: 300px;
+    --rack-frame-inner-width: 420px;
+    --rack-side-width: calc((var(--rack-frame-inner-width) - var(--rack-core-width)) / 2);
+    width: calc(var(--rack-frame-inner-width) + 36px);
+    min-width: calc(var(--rack-frame-inner-width) + 36px);
+    max-width: calc(var(--rack-frame-inner-width) + 36px);
+    flex: 0 0 calc(var(--rack-frame-inner-width) + 36px);
     flex-shrink: 0;
     padding: 18px;
     border: 2px solid #6d726f;
@@ -392,8 +428,15 @@ textarea:focus {
     border-color: #cfd4da;
 }
 
+.rack-frame__inner {
+    display: grid;
+    grid-template-columns: minmax(48px, var(--rack-side-width)) var(--rack-core-width) minmax(48px, var(--rack-side-width));
+    gap: 12px;
+    align-items: stretch;
+}
+
 #rack {
-    width: 100%;
+    width: var(--rack-core-width);
     position: relative;
     background:
         linear-gradient(90deg, rgba(255, 255, 255, 0.04) 0, rgba(255, 255, 255, 0.04) 42px, transparent 42px, transparent calc(100% - 42px), rgba(255, 255, 255, 0.04) calc(100% - 42px), rgba(255, 255, 255, 0.04) 100%),
@@ -409,6 +452,84 @@ textarea:focus {
 
 .planner-page.view-rear #rack {
     border-color: #5d7690;
+}
+
+.rack-side-compartment {
+    min-height: 100%;
+    padding: 10px 8px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)),
+        rgba(9, 12, 11, 0.48);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.rack-side-compartment::before {
+    content: attr(data-side) " side";
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(240, 243, 238, 0.72);
+    text-align: center;
+}
+
+.rack-side-compartment.is-drop-target {
+    border-color: rgba(245, 197, 66, 0.86);
+    box-shadow: 0 0 0 3px rgba(245, 197, 66, 0.2);
+    background-color: rgba(245, 197, 66, 0.08);
+}
+
+.rack-side-compartment__empty {
+    margin: auto 0;
+    font-size: 11px;
+    line-height: 1.4;
+    text-align: center;
+    color: rgba(240, 243, 238, 0.58);
+}
+
+.rack-side-item {
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    color: #fff;
+    min-height: 88px;
+    padding: 10px 4px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 8px;
+    cursor: pointer;
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.16);
+}
+
+.rack-side-item.is-selected {
+    box-shadow: 0 0 0 2px rgba(245, 197, 66, 0.85), 0 10px 18px rgba(0, 0, 0, 0.2);
+}
+
+.rack-side-item__label {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    min-height: 72px;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    text-align: center;
+}
+
+.rack-side-item__notes {
+    font-size: 11px;
+    line-height: 1.35;
+    color: rgba(255, 255, 255, 0.84);
+    text-align: center;
 }
 
 .rack-slot,
@@ -780,6 +901,39 @@ textarea:focus {
     font-size: 13px;
 }
 
+.side-item-library {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.side-item-library-card {
+    border-radius: 12px;
+    padding: 10px 12px;
+    color: #fff;
+    cursor: grab;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.side-item-library-card:hover {
+    filter: brightness(1.05);
+}
+
+.side-item-library-card__title {
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.side-item-library-card__meta {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.84);
+}
+
+.side-item-form textarea {
+    min-height: 60px;
+}
+
 .field-group {
     display: flex;
     flex-direction: column;
@@ -995,6 +1149,20 @@ input.is-invalid {
         flex-direction: column;
         align-items: center;
     }
+
+    .rack-frame {
+        --rack-core-width: min(300px, calc(100vw - 156px));
+        --rack-frame-inner-width: min(420px, calc(100vw - 72px));
+        width: calc(var(--rack-frame-inner-width) + 24px);
+        min-width: calc(var(--rack-frame-inner-width) + 24px);
+        max-width: calc(var(--rack-frame-inner-width) + 24px);
+        flex-basis: calc(var(--rack-frame-inner-width) + 24px);
+        padding: 12px;
+    }
+
+    .rack-frame__inner {
+        gap: 8px;
+    }
 }
 
 /* ── Side View ──────────────────────────────────────────── */
@@ -1024,6 +1192,10 @@ input.is-invalid {
     font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.05em;
+    padding: 5px 8px;
+    border-radius: 9px;
+    border: 1px solid transparent;
+    transition: border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
 }
 
 .rack-side-face-label--front {
@@ -1032,6 +1204,21 @@ input.is-invalid {
 
 .rack-side-face-label--rear {
     color: #6aaee8;
+}
+
+.rack-side-face-label.is-active {
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.rack-side-face-label--front.is-active {
+    border-color: rgba(44, 201, 137, 0.8);
+    box-shadow: 0 0 0 2px rgba(44, 201, 137, 0.22);
+}
+
+.rack-side-face-label--rear.is-active {
+    border-color: rgba(106, 174, 232, 0.84);
+    box-shadow: 0 0 0 2px rgba(106, 174, 232, 0.2);
 }
 
 .rack-side-view {

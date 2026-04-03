@@ -305,7 +305,8 @@ document.addEventListener("DOMContentLoaded", () => {
                         minDepthClearanceCm: 0,
                         notes
                     },
-                    components: []
+                    components: [],
+                    sideCompartmentItems: createEmptySideCompartmentState()
                 },
                 updatedAt: new Date().toISOString()
             };
@@ -427,14 +428,21 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
     }
 
+    const rackFrameEl = document.getElementById("rackFrame");
     const rackEl = document.getElementById("rack");
     const rackStageHeadingEl = document.getElementById("rackStageHeading");
     const accordionEl = document.getElementById("accordion");
     const rackInfoEl = document.getElementById("rackInfo");
+    const plannerNoticeEl = document.getElementById("plannerNotice");
     const viewLegendEl = document.getElementById("viewLegend");
     const rackIdentityBarEl = document.getElementById("rackIdentityBar");
     const rackNameTagEl = document.getElementById("rackNameTag");
     const viewModeBadgeEl = document.getElementById("viewModeBadge");
+    const rackSideLabelFrontEl = document.getElementById("rackSideLabelFront");
+    const rackSideLabelRearEl = document.getElementById("rackSideLabelRear");
+    const sideCompartmentLeftEl = document.getElementById("sideCompartmentLeft");
+    const sideCompartmentRightEl = document.getElementById("sideCompartmentRight");
+    const sideCompartmentLibraryEl = document.getElementById("sideCompartmentLibrary");
     const rackPropertiesPanelEl = document.getElementById("rackPropertiesPanel");
     const rackPropertiesInfoEl = document.getElementById("rackPropertiesInfo");
     const rackNameInput = document.getElementById("rackNameInput");
@@ -448,17 +456,29 @@ document.addEventListener("DOMContentLoaded", () => {
     const saveRackPropertiesButton = document.getElementById("saveRackProperties");
     const toggleVacantSlotsButton = document.getElementById("toggleVacantSlots");
     const toggleViewButton = document.getElementById("toggleViewButton");
+    const libraryFormToggleButton = document.getElementById("libraryFormToggle");
+    const libraryFormToggleLabelEl = document.getElementById("libraryFormToggleLabel");
+    const libraryFormCollapseEl = document.getElementById("libraryFormCollapse");
     const addLibraryComponentButton = document.getElementById("addLibraryComponent");
     const saveSelectedComponentButton = document.getElementById("saveSelectedComponent");
     const deleteSelectedComponentButton = document.getElementById("deleteSelectedComponent");
     const clearSelectionButton = document.getElementById("clearSelection");
     const selectedComponentInfoEl = document.getElementById("selectedComponentInfo");
+    const selectedSideItemInfoEl = document.getElementById("selectedSideItemInfo");
+    const saveSelectedSideItemButton = document.getElementById("saveSelectedSideItem");
+    const deleteSelectedSideItemButton = document.getElementById("deleteSelectedSideItem");
+    const clearSideItemSelectionButton = document.getElementById("clearSideItemSelection");
     const loadRackInput = document.getElementById("loadRackInput");
     const loadLibraryInput = document.getElementById("loadLibraryInput");
     const libraryCategorySelect = document.getElementById("libraryCategorySelect");
     const libraryNewCategoryNameInput = document.getElementById("libraryNewCategoryName");
+    const customSideLabelNameInput = document.getElementById("customSideLabelName");
+    const customSideLabelNotesInput = document.getElementById("customSideLabelNotes");
+    const customSideLabelColorInput = document.getElementById("customSideLabelColor");
+    const addCustomSideLabelLeftButton = document.getElementById("addCustomSideLabelLeft");
+    const addCustomSideLabelRightButton = document.getElementById("addCustomSideLabelRight");
 
-    if (!rackEl || !accordionEl || !rackInfoEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput) {
+    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
         return;
     }
 
@@ -516,6 +536,12 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     ];
 
+    const sideCompartmentLibrarySeed = [
+        { type: "fiber-cables", name: "Fibre Optic Cables", description: "Cable tray / slack storage", color: "#1d8a9b" },
+        { type: "power-cables", name: "Power Cables", description: "Power routing and excess length", color: "#d97706" },
+        { type: "patch-cables", name: "Patch Cables", description: "Patch bundle / service loops", color: "#2c9874" }
+    ];
+
     const state = {
         rackHeightRU: defaultRackHeightRU,
         currentView: "front",
@@ -531,8 +557,12 @@ document.addEventListener("DOMContentLoaded", () => {
         showVacantSlots: true,
         libraryCategories: createLibraryState(defaultLibrarySeed),
         rackComponents: [],
+        sideCompartmentItems: createEmptySideCompartmentState(),
         rackSlots: createEmptyRackSlots(defaultRackHeightRU),
+        libraryFormExpanded: false,
         selectedComponentId: null,
+        selectedSideItemId: null,
+        activeDragSource: null,
         dragPreview: null,
         notice: "Drag a component into the rack or create a custom component below."
     };
@@ -548,6 +578,12 @@ document.addEventListener("DOMContentLoaded", () => {
         notes: document.getElementById("selectedComponentNotes")
     };
     const selectedComponentColorPresetsEl = document.getElementById("selectedComponentColorPresets");
+    const selectedSideItemFields = {
+        name: document.getElementById("selectedSideItemName"),
+        side: document.getElementById("selectedSideItemSide"),
+        color: document.getElementById("selectedSideItemColor"),
+        notes: document.getElementById("selectedSideItemNotes")
+    };
 
     const activeRackId = new URLSearchParams(window.location.search).get("rackId");
 
@@ -683,6 +719,122 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function createEmptyRackSlots(heightRU) {
         return Array.from({ length: heightRU }, () => ({ front: false, rear: false }));
+    }
+
+    function createEmptySideCompartmentState() {
+        return {
+            front: { left: [], right: [] },
+            rear: { left: [], right: [] }
+        };
+    }
+
+    function normalizeSideCompartmentItem(item, fallbackView = state.currentView, fallbackSide = "left", fallbackOrder = 0) {
+        const itemType = String(item?.type || "custom-label").trim() || "custom-label";
+        return {
+            id: item?.id || createId("side-item"),
+            view: item?.view === "rear" ? "rear" : (fallbackView === "rear" ? "rear" : "front"),
+            side: item?.side === "right" ? "right" : (fallbackSide === "right" ? "right" : "left"),
+            type: itemType,
+            name: String(item?.name || getSideItemTypeLabel(itemType)).trim() || getSideItemTypeLabel(itemType),
+            notes: String(item?.notes || "").trim(),
+            customColor: String(item?.customColor || "").trim() || getDefaultSideItemColor(itemType),
+            order: Number(item?.order) || fallbackOrder
+        };
+    }
+
+    function normalizeSideCompartmentState(sideCompartmentItems) {
+        const normalized = createEmptySideCompartmentState();
+
+        ["front", "rear"].forEach(view => {
+            ["left", "right"].forEach(side => {
+                const items = sideCompartmentItems?.[view]?.[side];
+                normalized[view][side] = Array.isArray(items)
+                    ? items
+                        .map((item, index) => normalizeSideCompartmentItem(item, view, side, index + 1))
+                        .sort((leftItem, rightItem) => leftItem.order - rightItem.order)
+                    : [];
+            });
+        });
+
+        return normalized;
+    }
+
+    function getDefaultSideItemColor(type) {
+        const colorMap = {
+            "fiber-cables": "#1d8a9b",
+            "power-cables": "#d97706",
+            "patch-cables": "#2c9874",
+            "custom-label": "#7d8994"
+        };
+
+        return colorMap[type] || colorMap["custom-label"];
+    }
+
+    function getSideItemTypeLabel(type) {
+        const labelMap = {
+            "fiber-cables": "Fibre cables",
+            "power-cables": "Power cables",
+            "patch-cables": "Patch cables",
+            "custom-label": "Custom Label"
+        };
+
+        return labelMap[type] || "Side Item";
+    }
+
+    function getSideItemDisplayLabel(item) {
+        if (item?.type === "custom-label") {
+            return String(item?.notes || "").trim() || String(item?.name || "").trim() || getSideItemTypeLabel(item?.type);
+        }
+
+        return getSideItemTypeLabel(item?.type);
+    }
+
+    function getSideItemBackground(item) {
+        const baseColor = item?.customColor || getDefaultSideItemColor(item?.type);
+        return `linear-gradient(135deg, ${adjustBrightness(baseColor, -18)}, ${baseColor})`;
+    }
+
+    function getSideCompartmentItems(view = state.currentView, side) {
+        const normalizedView = view === "rear" ? "rear" : "front";
+        const normalizedSide = side === "right" ? "right" : "left";
+        return state.sideCompartmentItems[normalizedView][normalizedSide];
+    }
+
+    function getAllSideCompartmentItems() {
+        return ["front", "rear"].flatMap(view => ["left", "right"].flatMap(side => getSideCompartmentItems(view, side)));
+    }
+
+    function getSelectedSideCompartmentItem() {
+        if (!state.selectedSideItemId) {
+            return null;
+        }
+
+        return getAllSideCompartmentItems().find(item => item.id === state.selectedSideItemId) || null;
+    }
+
+    function reorderSideCompartmentItems(view, side) {
+        getSideCompartmentItems(view, side).forEach((item, index) => {
+            item.order = index + 1;
+        });
+    }
+
+    function clearSideCompartmentDropTargets() {
+        [sideCompartmentLeftEl, sideCompartmentRightEl].forEach(element => {
+            element.classList.remove("is-drop-target");
+        });
+    }
+
+    function setActiveDragSource(source) {
+        state.activeDragSource = source || null;
+    }
+
+    function clearActiveDragSource() {
+        state.activeDragSource = null;
+        clearSideCompartmentDropTargets();
+    }
+
+    function isSideCompartmentDragSourceActive() {
+        return state.activeDragSource === "side-library" || state.activeDragSource === "side-compartment";
     }
 
     function cloneRackComponent(component) {
@@ -1016,6 +1168,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return state.rackComponents.find(component => component.id === state.selectedComponentId) || null;
     }
 
+    function renderSideViewFaceLabels() {
+        rackSideLabelFrontEl.classList.toggle("is-active", state.currentView === "front");
+        rackSideLabelRearEl.classList.toggle("is-active", state.currentView === "rear");
+    }
+
+    function renderPlannerNotice() {
+        plannerNoticeEl.textContent = state.notice;
+    }
+
     function rackPositionToTop(position, componentHeightRU) {
         return (state.rackHeightRU - (position + componentHeightRU - 1)) * rackUnitPixelHeight;
     }
@@ -1055,7 +1216,11 @@ document.addEventListener("DOMContentLoaded", () => {
         const rackName = state.rackProfile.name || "Main Rack";
         const rackTag = state.rackProfile.tag || "RACK-01";
         rackNameTagEl.textContent = `${rackName} [${rackTag}]`;
-        rackPropertiesInfoEl.textContent = `Rack: ${rackName} (${rackTag})`;
+        rackPropertiesInfoEl.textContent = [
+            `Rack: ${rackName} (${rackTag})`,
+            state.rackProfile.room ? `Room: ${state.rackProfile.room}` : null,
+            state.rackProfile.owner ? `Description: ${state.rackProfile.owner}` : null
+        ].filter(Boolean).join(" | ");
 
         rackNameInput.value = rackName;
         rackTagInput.value = rackTag;
@@ -1126,7 +1291,8 @@ document.addEventListener("DOMContentLoaded", () => {
             currentView: state.currentView,
             showVacantSlots: state.showVacantSlots,
             rackProfile: state.rackProfile,
-            components: state.rackComponents
+            components: state.rackComponents,
+            sideCompartmentItems: state.sideCompartmentItems
         };
 
         writeCatalog(catalog);
@@ -1157,7 +1323,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 minDepthClearanceCm: Number(locatedRack.rack.plannerState?.rackProfile?.minDepthClearanceCm) || 0,
                 notes: locatedRack.rack.notes || ""
             },
-            components: []
+            components: [],
+            sideCompartmentItems: createEmptySideCompartmentState()
         };
 
         loadRackFromFile(locatedRack.rack.plannerState && Array.isArray(locatedRack.rack.plannerState.components)
@@ -1230,7 +1397,8 @@ document.addEventListener("DOMContentLoaded", () => {
             },
             totalCalculatedConsumptionW: totalPowerW,
             showVacantSlots: state.showVacantSlots,
-            components: state.rackComponents
+            components: state.rackComponents,
+            sideCompartmentItems: state.sideCompartmentItems
         };
 
         const isCsv = format === "csv";
@@ -1272,7 +1440,9 @@ document.addEventListener("DOMContentLoaded", () => {
         };
         state.showVacantSlots = payload.showVacantSlots !== false;
         state.rackComponents = nextComponents;
+        state.sideCompartmentItems = normalizeSideCompartmentState(payload.sideCompartmentItems);
         state.selectedComponentId = null;
+        state.selectedSideItemId = null;
         rebuildRackSlots();
         renderAll();
         syncActiveRackToCatalog();
@@ -1326,6 +1496,8 @@ document.addEventListener("DOMContentLoaded", () => {
         if (rackStageHeadingEl) {
             rackStageHeadingEl.textContent = `Active Side: ${activeViewText}`;
         }
+        renderSideViewFaceLabels();
+        renderPlannerNotice();
 
         rackInfoEl.innerHTML = `
             <div class="rack-info-grid">
@@ -1353,13 +1525,113 @@ document.addEventListener("DOMContentLoaded", () => {
                     </div>
                 </div>
             </div>
-            <div class="message-banner">${state.notice}</div>
         `;
         viewLegendEl.textContent = state.currentView === "front"
             ? "Front view: showing components mounted on the front face."
             : "Rear view: rear-side placement is allowed when rack depth and clearance permit it.";
         toggleVacantSlotsButton.textContent = state.showVacantSlots ? "Hide Vacant Slots" : "Show Vacant Slots";
         toggleViewButton.textContent = state.currentView === "front" ? "Switch to Rear View" : "Switch to Front View";
+    }
+
+    function renderSideCompartmentLibrary() {
+        sideCompartmentLibraryEl.innerHTML = "";
+
+        sideCompartmentLibrarySeed.forEach(item => {
+            const itemEl = document.createElement("div");
+            const titleEl = document.createElement("div");
+            const metaEl = document.createElement("div");
+
+            itemEl.className = "side-item-library-card";
+            itemEl.draggable = true;
+            itemEl.style.background = getSideItemBackground({ type: item.type, customColor: item.color });
+            itemEl.dataset.sideItem = JSON.stringify(item);
+            itemEl.title = `Drag ${item.name} into the left or right side compartment`;
+            itemEl.addEventListener("dragstart", event => {
+                setActiveDragSource("side-library");
+                event.dataTransfer.setData("application/json", JSON.stringify({
+                    source: "side-library",
+                    sideItem: item
+                }));
+                event.dataTransfer.effectAllowed = "copy";
+            });
+            itemEl.addEventListener("dragend", clearActiveDragSource);
+
+            titleEl.className = "side-item-library-card__title";
+            titleEl.textContent = item.name;
+
+            metaEl.className = "side-item-library-card__meta";
+            metaEl.textContent = item.description;
+
+            itemEl.appendChild(titleEl);
+            itemEl.appendChild(metaEl);
+            sideCompartmentLibraryEl.appendChild(itemEl);
+        });
+    }
+
+    function renderSideCompartments() {
+        const containerHeight = `${state.rackHeightRU * rackUnitPixelHeight}px`;
+        [
+            { element: sideCompartmentLeftEl, side: "left" },
+            { element: sideCompartmentRightEl, side: "right" }
+        ].forEach(({ element, side }) => {
+            const items = getSideCompartmentItems(state.currentView, side);
+
+            element.innerHTML = "";
+            element.style.height = containerHeight;
+            element.dataset.side = side;
+
+            if (items.length === 0) {
+                const emptyEl = document.createElement("div");
+                emptyEl.className = "rack-side-compartment__empty";
+                emptyEl.textContent = `Drop ${side} side items here`;
+                element.appendChild(emptyEl);
+                return;
+            }
+
+            items.forEach(item => {
+                const itemEl = document.createElement("div");
+                const labelEl = document.createElement("div");
+                const displayLabel = getSideItemDisplayLabel(item);
+                const secondaryNotes = item.type === "custom-label"
+                    ? ""
+                    : String(item.notes || "").trim();
+
+                itemEl.className = "rack-side-item";
+                itemEl.style.background = getSideItemBackground(item);
+                itemEl.dataset.sideItemId = item.id;
+                itemEl.draggable = true;
+                itemEl.title = displayLabel;
+                if (item.id === state.selectedSideItemId) {
+                    itemEl.classList.add("is-selected");
+                }
+
+                itemEl.addEventListener("dragstart", event => {
+                    setActiveDragSource("side-compartment");
+                    event.dataTransfer.setData("application/json", JSON.stringify({
+                        source: "side-compartment",
+                        sideItemId: item.id
+                    }));
+                    event.dataTransfer.effectAllowed = "move";
+                });
+                itemEl.addEventListener("dragend", clearActiveDragSource);
+
+                labelEl.className = "rack-side-item__label";
+                labelEl.textContent = displayLabel;
+
+                itemEl.appendChild(labelEl);
+
+                if (secondaryNotes) {
+                    const notesEl = document.createElement("div");
+                    notesEl.className = "rack-side-item__notes";
+                    notesEl.textContent = secondaryNotes;
+                    itemEl.appendChild(notesEl);
+                }
+
+                element.appendChild(itemEl);
+            });
+        });
+
+        clearSideCompartmentDropTargets();
     }
 
     function renderRack() {
@@ -1673,13 +1945,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
+    function syncLibraryFormDisclosure() {
+        const isExpanded = Boolean(state.libraryFormExpanded);
+        libraryFormCollapseEl.classList.toggle("show", isExpanded);
+        libraryFormToggleButton.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+        libraryFormToggleButton.setAttribute("aria-label", `${isExpanded ? "Hide" : "Show"} add library component form`);
+        libraryFormToggleLabelEl.textContent = isExpanded ? "Hide" : "Show";
+    }
+
     function renderAll() {
         rebuildRackSlots();
         renderRack();
+        renderSideCompartments();
         renderSideView();
         renderLibrary();
+        renderSideCompartmentLibrary();
         renderRackProfile();
         renderSelectedComponentPanel();
+        renderSelectedSideItemPanel();
         renderStatus();
     }
 
@@ -1724,6 +2007,37 @@ document.addEventListener("DOMContentLoaded", () => {
         selectedComponentInfoEl.textContent = `Selected: ${selectedComponent.name} (${getComponentRangeLabel(selectedComponent)})`;
     }
 
+    function renderSelectedSideItemPanel() {
+        const selectedSideItem = getSelectedSideCompartmentItem();
+        const hasSelection = Boolean(selectedSideItem);
+
+        Object.values(selectedSideItemFields).forEach(field => {
+            if (!field) {
+                return;
+            }
+            field.disabled = !hasSelection;
+        });
+
+        saveSelectedSideItemButton.disabled = !hasSelection;
+        deleteSelectedSideItemButton.disabled = !hasSelection;
+        clearSideItemSelectionButton.disabled = !hasSelection;
+
+        if (!hasSelection) {
+            selectedSideItemFields.name.value = "";
+            selectedSideItemFields.side.value = "left";
+            selectedSideItemFields.color.value = "#7d8994";
+            selectedSideItemFields.notes.value = "";
+            selectedSideItemInfoEl.textContent = "Select a side-compartment item to edit.";
+            return;
+        }
+
+        selectedSideItemFields.name.value = selectedSideItem.name;
+        selectedSideItemFields.side.value = selectedSideItem.side;
+        selectedSideItemFields.color.value = selectedSideItem.customColor || getDefaultSideItemColor(selectedSideItem.type);
+        selectedSideItemFields.notes.value = selectedSideItem.notes || "";
+        selectedSideItemInfoEl.textContent = `Selected: ${selectedSideItem.name} (${selectedSideItem.view} / ${selectedSideItem.side})`;
+    }
+
     function addComponentToRack(componentInput) {
         const component = cloneRackComponent(componentInput);
 
@@ -1749,10 +2063,36 @@ document.addEventListener("DOMContentLoaded", () => {
         component.position = resolvedPosition;
         state.rackComponents.push(component);
         state.selectedComponentId = component.id;
+        state.selectedSideItemId = null;
         state.dragPreview = null;
         renderAll();
         syncActiveRackToCatalog();
         setNotice(`${component.name} placed at ${getComponentRangeLabel(component)}.`);
+        return true;
+    }
+
+    function addSideCompartmentItem(itemInput, side = "left", view = state.currentView) {
+        const normalizedView = view === "rear" ? "rear" : "front";
+        const normalizedSide = side === "right" ? "right" : "left";
+        const nextItems = getSideCompartmentItems(normalizedView, normalizedSide);
+        const sideItem = normalizeSideCompartmentItem({
+            ...itemInput,
+            view: normalizedView,
+            side: normalizedSide,
+            order: nextItems.length + 1
+        }, normalizedView, normalizedSide, nextItems.length + 1);
+
+        if (!sideItem.name) {
+            setNotice("A side-item label is required.");
+            return false;
+        }
+
+        nextItems.push(sideItem);
+        state.selectedComponentId = null;
+        state.selectedSideItemId = sideItem.id;
+        renderAll();
+        syncActiveRackToCatalog();
+        setNotice(`${sideItem.name} added to the ${normalizedView} ${normalizedSide} compartment.`);
         return true;
     }
 
@@ -1785,6 +2125,34 @@ document.addEventListener("DOMContentLoaded", () => {
         setNotice("Component removed from rack.");
     }
 
+    function removeSideCompartmentItem(sideItemId, requireConfirmation = true) {
+        const selectedSideItem = getAllSideCompartmentItems().find(item => item.id === sideItemId);
+        if (!selectedSideItem) {
+            return;
+        }
+
+        if (requireConfirmation) {
+            const confirmed = window.confirm(`Delete ${selectedSideItem.name} from the ${selectedSideItem.view} ${selectedSideItem.side} side compartment?`);
+            if (!confirmed) {
+                setNotice("Deletion canceled.");
+                return;
+            }
+        }
+
+        const items = getSideCompartmentItems(selectedSideItem.view, selectedSideItem.side);
+        const nextItems = items.filter(item => item.id !== sideItemId);
+        state.sideCompartmentItems[selectedSideItem.view][selectedSideItem.side] = nextItems;
+        reorderSideCompartmentItems(selectedSideItem.view, selectedSideItem.side);
+
+        if (state.selectedSideItemId === sideItemId) {
+            state.selectedSideItemId = null;
+        }
+
+        renderAll();
+        syncActiveRackToCatalog();
+        setNotice("Side item removed.");
+    }
+
     function handleSelectRackComponent(componentId) {
         const component = state.rackComponents.find(entry => entry.id === componentId);
         if (!component) {
@@ -1792,10 +2160,29 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         setActiveEditor("component");
         state.selectedComponentId = componentId;
+        state.selectedSideItemId = null;
         renderRack();
+        renderSideCompartments();
         renderSideView();
         renderSelectedComponentPanel();
+        renderSelectedSideItemPanel();
         setNotice(`Selected ${component.name} for editing.`);
+    }
+
+    function handleSelectSideCompartmentItem(sideItemId) {
+        const sideItem = getAllSideCompartmentItems().find(item => item.id === sideItemId);
+        if (!sideItem) {
+            return;
+        }
+
+        state.selectedComponentId = null;
+        state.selectedSideItemId = sideItemId;
+        renderRack();
+        renderSideCompartments();
+        renderSideView();
+        renderSelectedComponentPanel();
+        renderSelectedSideItemPanel();
+        setNotice(`Selected ${sideItem.name} for editing.`);
     }
 
     function setFieldHint(inputId, hintId, message) {
@@ -1879,6 +2266,7 @@ document.addEventListener("DOMContentLoaded", () => {
         state.selectedComponentId = null;
         setActiveEditor("rack");
         renderRack();
+        renderSideCompartments();
         renderSideView();
         renderSelectedComponentPanel();
         setNotice("Selection cleared.");
@@ -1890,6 +2278,83 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         removeRackComponent(selectedComponent.id, true);
+    }
+
+    function clearSelectedSideItem() {
+        state.selectedSideItemId = null;
+        renderSideCompartments();
+        renderSelectedSideItemPanel();
+        setNotice("Side-item selection cleared.");
+    }
+
+    function handleSaveSelectedSideItem() {
+        const selectedSideItem = getSelectedSideCompartmentItem();
+        if (!selectedSideItem) {
+            return;
+        }
+
+        const nextName = selectedSideItemFields.name.value.trim();
+        const nextSide = selectedSideItemFields.side.value === "right" ? "right" : "left";
+        const nextColor = selectedSideItemFields.color.value || getDefaultSideItemColor(selectedSideItem.type);
+        const nextNotes = String(selectedSideItemFields.notes.value || "").trim();
+
+        if (!nextName) {
+            setNotice("A side-item label is required.");
+            return;
+        }
+
+        if (selectedSideItem.side !== nextSide) {
+            const currentItems = getSideCompartmentItems(selectedSideItem.view, selectedSideItem.side);
+            state.sideCompartmentItems[selectedSideItem.view][selectedSideItem.side] = currentItems.filter(item => item.id !== selectedSideItem.id);
+            reorderSideCompartmentItems(selectedSideItem.view, selectedSideItem.side);
+
+            selectedSideItem.side = nextSide;
+            state.sideCompartmentItems[selectedSideItem.view][nextSide].push(selectedSideItem);
+            reorderSideCompartmentItems(selectedSideItem.view, nextSide);
+        }
+
+        selectedSideItem.name = nextName;
+        selectedSideItem.customColor = nextColor;
+        selectedSideItem.notes = nextNotes;
+
+        renderAll();
+        syncActiveRackToCatalog();
+        setNotice(`Updated ${selectedSideItem.name}.`);
+    }
+
+    function handleDeleteSelectedSideItem() {
+        const selectedSideItem = getSelectedSideCompartmentItem();
+        if (!selectedSideItem) {
+            return;
+        }
+
+        removeSideCompartmentItem(selectedSideItem.id, true);
+    }
+
+    function handleAddCustomSideLabel(side) {
+        const name = customSideLabelNameInput.value.trim();
+        const notes = String(customSideLabelNotesInput.value || "").trim();
+        const customColor = customSideLabelColorInput.value || getDefaultSideItemColor("custom-label");
+
+        if (!name) {
+            setNotice("Enter a custom side label before adding it.");
+            customSideLabelNameInput.focus();
+            return;
+        }
+
+        const added = addSideCompartmentItem({
+            type: "custom-label",
+            name,
+            notes,
+            customColor
+        }, side, state.currentView);
+
+        if (!added) {
+            return;
+        }
+
+        customSideLabelNameInput.value = "";
+        customSideLabelNotesInput.value = "";
     }
 
     function removeLibraryComponent(categoryId, componentId) {
@@ -1911,6 +2376,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function handleLibraryDragStart(event) {
+        setActiveDragSource("library");
         const componentData = event.currentTarget.dataset.component;
         event.dataTransfer.setData("application/json", JSON.stringify({
             source: "library",
@@ -1919,7 +2385,80 @@ document.addEventListener("DOMContentLoaded", () => {
         event.dataTransfer.effectAllowed = "copy";
     }
 
+    function handleSideCompartmentDragOver(event) {
+        if (!isSideCompartmentDragSourceActive()) {
+            return;
+        }
+
+        event.preventDefault();
+        const compartmentEl = event.currentTarget;
+        clearSideCompartmentDropTargets();
+        compartmentEl.classList.add("is-drop-target");
+        event.dataTransfer.dropEffect = state.activeDragSource === "side-compartment" ? "move" : "copy";
+    }
+
+    function handleSideCompartmentDrop(event) {
+        event.preventDefault();
+        const payload = parseDraggedPayload(event);
+        const targetSide = event.currentTarget.dataset.side === "right" ? "right" : "left";
+
+        clearSideCompartmentDropTargets();
+        clearActiveDragSource();
+
+        if (!payload) {
+            return;
+        }
+
+        if (payload.source === "side-library") {
+            const sideItem = payload.sideItem;
+            if (!sideItem) {
+                return;
+            }
+
+            addSideCompartmentItem({
+                type: sideItem.type,
+                name: sideItem.name,
+                notes: "",
+                customColor: sideItem.color || getDefaultSideItemColor(sideItem.type)
+            }, targetSide, state.currentView);
+            return;
+        }
+
+        if (payload.source !== "side-compartment") {
+            return;
+        }
+
+        const sideItem = getAllSideCompartmentItems().find(item => item.id === payload.sideItemId);
+        if (!sideItem) {
+            return;
+        }
+
+        if (sideItem.view !== state.currentView || sideItem.side !== targetSide) {
+            const sourceItems = getSideCompartmentItems(sideItem.view, sideItem.side).filter(item => item.id !== sideItem.id);
+            state.sideCompartmentItems[sideItem.view][sideItem.side] = sourceItems;
+            reorderSideCompartmentItems(sideItem.view, sideItem.side);
+
+            sideItem.view = state.currentView;
+            sideItem.side = targetSide;
+            state.sideCompartmentItems[state.currentView][targetSide].push(sideItem);
+            reorderSideCompartmentItems(state.currentView, targetSide);
+        }
+
+        state.selectedSideItemId = sideItem.id;
+        renderAll();
+        syncActiveRackToCatalog();
+        setNotice(`${sideItem.name} moved to the ${state.currentView} ${targetSide} compartment.`);
+    }
+
+    function handleSideCompartmentDragLeave(event) {
+        if (event.relatedTarget && event.currentTarget.contains(event.relatedTarget)) {
+            return;
+        }
+        event.currentTarget.classList.remove("is-drop-target");
+    }
+
     function handleRackComponentDragStart(event) {
+        setActiveDragSource("rack");
         const componentEl = event.currentTarget;
         const componentId = componentEl.dataset.componentId;
         const componentRU = Number(componentEl.dataset.ru) || 1;
@@ -1935,7 +2474,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function updateDragPreview(event) {
         event.preventDefault();
         const payload = parseDraggedPayload(event);
-        if (!payload) {
+        if (!payload || (payload.source !== "rack" && payload.source !== "library")) {
             if (state.dragPreview !== null) {
                 state.dragPreview = null;
                 renderRack();
@@ -1984,6 +2523,11 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        if (payload.source !== "rack" && payload.source !== "library") {
+            renderRack();
+            return;
+        }
+
         if (payload.source === "rack") {
             const movingComponent = state.rackComponents.find(component => component.id === payload.componentId);
             if (!movingComponent) {
@@ -2005,6 +2549,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             movingComponent.position = position;
             state.selectedComponentId = movingComponent.id;
+            state.selectedSideItemId = null;
             renderAll();
             syncActiveRackToCatalog();
             setNotice(`${movingComponent.name} moved to ${getComponentRangeLabel(movingComponent)}.`);
@@ -2036,6 +2581,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function clearDragPreview() {
         state.dragPreview = null;
+        clearActiveDragSource();
         renderRack();
     }
 
@@ -2134,8 +2680,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function handleToggleView() {
         state.currentView = state.currentView === "front" ? "rear" : "front";
-        renderStatus();
+        if (getSelectedSideCompartmentItem()?.view !== state.currentView) {
+            state.selectedSideItemId = null;
+        }
         renderRack();
+        renderSideCompartments();
+        renderSideView();
+        renderSelectedSideItemPanel();
+        renderStatus();
         syncActiveRackToCatalog();
     }
 
@@ -2151,20 +2703,23 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const savedView = state.currentView;
         const savedSelectedId = state.selectedComponentId;
+        const savedSelectedSideItemId = state.selectedSideItemId;
 
         try {
             // Deselect for clean capture
             state.selectedComponentId = null;
+            state.selectedSideItemId = null;
 
             // --- Capture front view ---
             state.currentView = "front";
             document.body.classList.remove("view-front", "view-rear");
             document.body.classList.add("view-front");
             renderRack();
+            renderSideCompartments();
             renderSideView();
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-            const frontCanvas = await html2canvas(document.getElementById("rack"), {
+            const frontCanvas = await html2canvas(rackFrameEl, {
                 scale: 2, backgroundColor: "#1a1d1b", useCORS: true, logging: false
             });
             const sideCanvas = await html2canvas(document.getElementById("rackSideView"), {
@@ -2176,18 +2731,21 @@ document.addEventListener("DOMContentLoaded", () => {
             document.body.classList.remove("view-front", "view-rear");
             document.body.classList.add("view-rear");
             renderRack();
+            renderSideCompartments();
             await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
-            const rearCanvas = await html2canvas(document.getElementById("rack"), {
+            const rearCanvas = await html2canvas(rackFrameEl, {
                 scale: 2, backgroundColor: "#1a1d1b", useCORS: true, logging: false
             });
 
             // --- Restore state ---
             state.currentView = savedView;
             state.selectedComponentId = savedSelectedId;
+            state.selectedSideItemId = savedSelectedSideItemId;
             document.body.classList.remove("view-front", "view-rear");
             document.body.classList.add(savedView === "rear" ? "view-rear" : "view-front");
             renderRack();
+            renderSideCompartments();
             renderSideView();
 
             // --- Compute conflict set ---
@@ -2485,9 +3043,11 @@ document.addEventListener("DOMContentLoaded", () => {
             // Ensure state is restored even on error
             state.currentView = savedView;
             state.selectedComponentId = savedSelectedId;
+            state.selectedSideItemId = savedSelectedSideItemId;
             document.body.classList.remove("view-front", "view-rear");
             document.body.classList.add(savedView === "rear" ? "view-rear" : "view-front");
             renderRack();
+            renderSideCompartments();
             renderSideView();
             setNotice(`PDF export failed: ${err.message}`);
         } finally {
@@ -2496,11 +3056,20 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function bindEvents() {
+        libraryFormToggleButton.addEventListener("click", () => {
+            state.libraryFormExpanded = !state.libraryFormExpanded;
+            syncLibraryFormDisclosure();
+        });
         addLibraryComponentButton.addEventListener("click", handleAddLibraryComponent);
         saveRackPropertiesButton.addEventListener("click", handleSaveRackProperties);
         saveSelectedComponentButton.addEventListener("click", handleSaveSelectedComponent);
         deleteSelectedComponentButton.addEventListener("click", handleDeleteSelectedComponent);
         clearSelectionButton.addEventListener("click", clearSelectedComponent);
+        saveSelectedSideItemButton.addEventListener("click", handleSaveSelectedSideItem);
+        deleteSelectedSideItemButton.addEventListener("click", handleDeleteSelectedSideItem);
+        clearSideItemSelectionButton.addEventListener("click", clearSelectedSideItem);
+        addCustomSideLabelLeftButton.addEventListener("click", () => handleAddCustomSideLabel("left"));
+        addCustomSideLabelRightButton.addEventListener("click", () => handleAddCustomSideLabel("right"));
         document.getElementById("increaseHeight").addEventListener("click", handleIncreaseRackHeight);
         document.getElementById("decreaseHeight").addEventListener("click", handleDecreaseRackHeight);
         toggleVacantSlotsButton.addEventListener("click", handleToggleVacantSlots);
@@ -2609,6 +3178,20 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
             handleSelectRackComponent(componentEl.dataset.componentId);
+        });
+
+        [sideCompartmentLeftEl, sideCompartmentRightEl].forEach(element => {
+            element.addEventListener("dragover", handleSideCompartmentDragOver);
+            element.addEventListener("drop", handleSideCompartmentDrop);
+            element.addEventListener("dragleave", handleSideCompartmentDragLeave);
+            element.addEventListener("click", event => {
+                const sideItemEl = event.target.closest(".rack-side-item");
+                if (!sideItemEl) {
+                    return;
+                }
+
+                handleSelectSideCompartmentItem(sideItemEl.dataset.sideItemId);
+            });
         });
 
         const sideViewEl = document.getElementById("rackSideView");
@@ -2735,6 +3318,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setActiveEditor("rack");
     initializeColorPicker();
     initializeSelectedComponentColorPalette();
+    syncLibraryFormDisclosure();
     renderAll();
     loadRackFromCatalog();
 });

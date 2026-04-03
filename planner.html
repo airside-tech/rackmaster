@@ -13,40 +13,75 @@
             <div id="accordion"></div>
         </div>
         <div class="panel-block">
-            <h5>Add Library Component</h5>
-            <div id="libraryForm" class="stack-form">
-                <select id="libraryCategorySelect"></select>
-                <input type="text" id="libraryNewCategoryName" placeholder="New Category (when selected)">
-                <span class="field-hint" id="hintLibraryCategory"></span>
-                <input type="text" id="libraryComponentName" placeholder="Component Name">
-                <span class="field-hint" id="hintLibraryName"></span>
-                <div class="field-group">
-                    <label class="library-field-label" for="libraryComponentHeight">Default Height (RU)</label>
-                    <input type="number" id="libraryComponentHeight" placeholder="e.g. 1" min="1">
-                </div>
-                <div class="field-group">
-                    <label class="library-field-label" for="libraryComponentClass">Manufacturer / Description</label>
-                    <input type="text" id="libraryComponentClass" placeholder="e.g. Cisco / Access Switch">
-                </div>
-                <div class="field-group">
-                    <label class="library-field-label" for="libraryComponentDepth">Default Depth (cm)</label>
-                    <input type="number" id="libraryComponentDepth" placeholder="e.g. 60" min="0">
-                </div>
-                <div class="field-group">
-                    <label class="library-field-label" for="libraryComponentPower">Power Usage (W)</label>
-                    <input type="number" id="libraryComponentPower" placeholder="e.g. 250" min="0">
-                </div>
-                <div id="colorPicker" class="compact-color-picker">
-                    <div class="compact-color-picker__header">
-                        <span class="compact-color-picker__title">Color</span>
-                        <div class="compact-color-picker__preview selected-color-preview" id="selectedColorPreview" style="background: linear-gradient(135deg, #1f6a52, #2c9874);"></div>
+            <div class="panel-block__header">
+                <h5 class="panel-block__title">Add Library Component</h5>
+                <button
+                    id="libraryFormToggle"
+                    class="panel-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="libraryFormCollapse"
+                >
+                    <span id="libraryFormToggleLabel">Show</span>
+                </button>
+            </div>
+            <div id="libraryFormCollapse" class="collapse">
+                <div id="libraryForm" class="stack-form stack-form--top-gap">
+                    <select id="libraryCategorySelect"></select>
+                    <input type="text" id="libraryNewCategoryName" placeholder="New Category (when selected)">
+                    <span class="field-hint" id="hintLibraryCategory"></span>
+                    <input type="text" id="libraryComponentName" placeholder="Component Name">
+                    <span class="field-hint" id="hintLibraryName"></span>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentHeight">Default Height (RU)</label>
+                        <input type="number" id="libraryComponentHeight" placeholder="e.g. 1" min="1">
                     </div>
-                    <div class="compact-color-picker__controls">
-                        <div class="color-preset-grid" id="colorPresetGrid"></div>
-                        <input type="color" id="customColorInput" aria-label="Custom default component color">
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentClass">Manufacturer / Description</label>
+                        <input type="text" id="libraryComponentClass" placeholder="e.g. Cisco / Access Switch">
                     </div>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentDepth">Default Depth (cm)</label>
+                        <input type="number" id="libraryComponentDepth" placeholder="e.g. 60" min="0">
+                    </div>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentPower">Power Usage (W)</label>
+                        <input type="number" id="libraryComponentPower" placeholder="e.g. 250" min="0">
+                    </div>
+                    <div id="colorPicker" class="compact-color-picker">
+                        <div class="compact-color-picker__header">
+                            <span class="compact-color-picker__title">Color</span>
+                            <div class="compact-color-picker__preview selected-color-preview" id="selectedColorPreview" style="background: linear-gradient(135deg, #1f6a52, #2c9874);"></div>
+                        </div>
+                        <div class="compact-color-picker__controls">
+                            <div class="color-preset-grid" id="colorPresetGrid"></div>
+                            <input type="color" id="customColorInput" aria-label="Custom default component color">
+                        </div>
+                    </div>
+                    <button id="addLibraryComponent">Add to Library</button>
                 </div>
-                <button id="addLibraryComponent">Add to Library</button>
+            </div>
+        </div>
+        <div class="panel-block">
+            <h5>Side Compartments</h5>
+            <div id="sideCompartmentLibrary" class="side-item-library"></div>
+            <div class="stack-form side-item-form">
+                <div class="field-group">
+                    <label class="library-field-label" for="customSideLabelName">Custom Side Label</label>
+                    <input type="text" id="customSideLabelName" placeholder="e.g. Uplink Bundle">
+                </div>
+                <div class="field-group">
+                    <label class="library-field-label" for="customSideLabelNotes">Notes</label>
+                    <textarea id="customSideLabelNotes" placeholder="Optional notes for this side label"></textarea>
+                </div>
+                <div class="field-group">
+                    <label class="library-field-label" for="customSideLabelColor">Color</label>
+                    <input type="color" id="customSideLabelColor" value="#7d8994">
+                </div>
+                <div class="selection-actions">
+                    <button id="addCustomSideLabelLeft" type="button">Add To Left</button>
+                    <button id="addCustomSideLabelRight" type="button">Add To Right</button>
+                </div>
             </div>
         </div>
         <div class="panel-block">
@@ -90,13 +125,17 @@
         <section class="rack-stage panel-block">
             <h5 id="rackStageHeading" class="rack-stage-heading">Active Side: Front</h5>
             <div class="rack-views-row">
-                <div class="rack-frame">
-                    <div id="rack"></div>
+                <div id="rackFrame" class="rack-frame">
+                    <div class="rack-frame__inner">
+                        <div id="sideCompartmentLeft" class="rack-side-compartment" data-side="left"></div>
+                        <div id="rack"></div>
+                        <div id="sideCompartmentRight" class="rack-side-compartment" data-side="right"></div>
+                    </div>
                 </div>
                 <div class="rack-side-view-wrapper">
                     <div class="rack-side-face-labels">
-                        <span class="rack-side-face-label rack-side-face-label--front">FRONT</span>
-                        <span class="rack-side-face-label rack-side-face-label--rear">REAR</span>
+                        <span id="rackSideLabelFront" class="rack-side-face-label rack-side-face-label--front" data-face="front">FRONT</span>
+                        <span id="rackSideLabelRear" class="rack-side-face-label rack-side-face-label--rear" data-face="rear">REAR</span>
                     </div>
                     <div id="rackSideView" class="rack-side-view"></div>
                 </div>
@@ -108,6 +147,10 @@
 
     <aside class="properties-panel">
         <h4>Properties</h4>
+        <div class="panel-block">
+            <h5>Planner Notice</h5>
+            <div id="plannerNotice" class="planner-notice">Drag a component into the rack or create a custom component below.</div>
+        </div>
         <div class="panel-block" id="rackPropertiesPanel">
             <h5>Rack Properties</h5>
             <div id="rackPropertiesInfo" class="message-banner">Click rack header to edit rack metadata.</div>
@@ -197,6 +240,37 @@
                 <button id="saveSelectedComponent" type="button">Save Changes</button>
                 <button id="deleteSelectedComponent" type="button">Delete</button>
                 <button id="clearSelection" type="button">Clear</button>
+            </div>
+        </div>
+
+        <div class="panel-block">
+            <h5>Selected Side Item</h5>
+            <div id="selectedSideItemInfo" class="message-banner">Select a side-compartment item to edit.</div>
+            <div id="selectedSideItemForm" class="stack-form">
+                <div class="field-group">
+                    <label class="prop-label">Label</label>
+                    <input type="text" id="selectedSideItemName" placeholder="—">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Side</label>
+                    <select id="selectedSideItemSide">
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Color</label>
+                    <input type="color" id="selectedSideItemColor" value="#7d8994">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Notes</label>
+                    <textarea id="selectedSideItemNotes" placeholder="Free notes for this side item"></textarea>
+                </div>
+            </div>
+            <div class="selection-actions">
+                <button id="saveSelectedSideItem" type="button">Save Side Item</button>
+                <button id="deleteSelectedSideItem" type="button">Delete</button>
+                <button id="clearSideItemSelection" type="button">Clear</button>
             </div>
         </div>
     </aside>
