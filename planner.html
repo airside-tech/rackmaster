@@ -63,24 +63,39 @@
             </div>
         </div>
         <div class="panel-block">
-            <h5>Side Compartments</h5>
-            <div id="sideCompartmentLibrary" class="side-item-library"></div>
-            <div class="stack-form side-item-form">
-                <div class="field-group">
-                    <label class="library-field-label" for="customSideLabelName">Custom Side Label</label>
-                    <input type="text" id="customSideLabelName" placeholder="e.g. Uplink Bundle">
-                </div>
-                <div class="field-group">
-                    <label class="library-field-label" for="customSideLabelNotes">Notes</label>
-                    <textarea id="customSideLabelNotes" placeholder="Optional notes for this side label"></textarea>
-                </div>
-                <div class="field-group">
-                    <label class="library-field-label" for="customSideLabelColor">Color</label>
-                    <input type="color" id="customSideLabelColor" value="#7d8994">
-                </div>
-                <div class="selection-actions">
-                    <button id="addCustomSideLabelLeft" type="button">Add To Left</button>
-                    <button id="addCustomSideLabelRight" type="button">Add To Right</button>
+            <div class="panel-block__header">
+                <h5 class="panel-block__title">Side Compartments</h5>
+                <button
+                    id="sideCompartmentFormToggle"
+                    class="panel-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="sideCompartmentFormCollapse"
+                >
+                    <span id="sideCompartmentFormToggleLabel">Show</span>
+                </button>
+            </div>
+            <div id="sideCompartmentFormCollapse" class="collapse">
+                <div id="sideCompartmentFormBody" class="stack-form stack-form--top-gap">
+                    <div id="sideCompartmentLibrary" class="side-item-library"></div>
+                    <div class="stack-form side-item-form">
+                        <div class="field-group">
+                            <label class="library-field-label" for="customSideLabelName">Custom Side Label</label>
+                            <input type="text" id="customSideLabelName" placeholder="e.g. Uplink Bundle">
+                        </div>
+                        <div class="field-group">
+                            <label class="library-field-label" for="customSideLabelNotes">Notes</label>
+                            <textarea id="customSideLabelNotes" placeholder="Optional notes for this side label"></textarea>
+                        </div>
+                        <div class="field-group">
+                            <label class="library-field-label" for="customSideLabelColor">Color</label>
+                            <input type="color" id="customSideLabelColor" value="#7d8994">
+                        </div>
+                        <div class="selection-actions">
+                            <button id="addCustomSideLabelLeft" type="button">Add To Left</button>
+                            <button id="addCustomSideLabelRight" type="button">Add To Right</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -116,7 +131,6 @@
             <div id="controls" class="toolbar-row">
                 <button id="increaseHeight">Increase Height</button>
                 <button id="decreaseHeight">Decrease Height</button>
-                <button id="toggleVacantSlots">Hide Vacant Slots</button>
                 <button id="toggleViewButton">Switch to Rear View</button>
             </div>
             <div id="rackInfo"></div>
@@ -132,12 +146,16 @@
                         <div id="sideCompartmentRight" class="rack-side-compartment" data-side="right"></div>
                     </div>
                 </div>
-                <div class="rack-side-view-wrapper">
+                <div class="rack-side-panel">
                     <div class="rack-side-face-labels">
                         <span id="rackSideLabelFront" class="rack-side-face-label rack-side-face-label--front" data-face="front">FRONT</span>
                         <span id="rackSideLabelRear" class="rack-side-face-label rack-side-face-label--rear" data-face="rear">REAR</span>
                     </div>
-                    <div id="rackSideView" class="rack-side-view"></div>
+                    <div class="rack-side-frame">
+                        <div class="rack-side-view-wrapper">
+                            <div id="rackSideView" class="rack-side-view"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="viewLegend" class="view-legend"></div>

@@ -295,7 +295,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 plannerState: {
                     rackHeightRU: rackHeight,
                     currentView: "front",
-                    showVacantSlots: true,
                     rackProfile: {
                         name: rackName,
                         tag: rackTag,
@@ -454,11 +453,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const rackClearanceInput = document.getElementById("rackClearanceInput");
     const rackNotesInput = document.getElementById("rackNotesInput");
     const saveRackPropertiesButton = document.getElementById("saveRackProperties");
-    const toggleVacantSlotsButton = document.getElementById("toggleVacantSlots");
     const toggleViewButton = document.getElementById("toggleViewButton");
     const libraryFormToggleButton = document.getElementById("libraryFormToggle");
     const libraryFormToggleLabelEl = document.getElementById("libraryFormToggleLabel");
     const libraryFormCollapseEl = document.getElementById("libraryFormCollapse");
+    const sideCompartmentFormToggleButton = document.getElementById("sideCompartmentFormToggle");
+    const sideCompartmentFormToggleLabelEl = document.getElementById("sideCompartmentFormToggleLabel");
+    const sideCompartmentFormCollapseEl = document.getElementById("sideCompartmentFormCollapse");
     const addLibraryComponentButton = document.getElementById("addLibraryComponent");
     const saveSelectedComponentButton = document.getElementById("saveSelectedComponent");
     const deleteSelectedComponentButton = document.getElementById("deleteSelectedComponent");
@@ -478,7 +479,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const addCustomSideLabelLeftButton = document.getElementById("addCustomSideLabelLeft");
     const addCustomSideLabelRightButton = document.getElementById("addCustomSideLabelRight");
 
-    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleVacantSlotsButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
+    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !sideCompartmentFormToggleButton || !sideCompartmentFormToggleLabelEl || !sideCompartmentFormCollapseEl || !addLibraryComponentButton || !saveSelectedComponentButton || !deleteSelectedComponentButton || !clearSelectionButton || !selectedComponentInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
         return;
     }
 
@@ -554,12 +555,12 @@ document.addEventListener("DOMContentLoaded", () => {
             minDepthClearanceCm: 0,
             notes: ""
         },
-        showVacantSlots: true,
         libraryCategories: createLibraryState(defaultLibrarySeed),
         rackComponents: [],
         sideCompartmentItems: createEmptySideCompartmentState(),
         rackSlots: createEmptyRackSlots(defaultRackHeightRU),
         libraryFormExpanded: false,
+        sideCompartmentFormExpanded: false,
         selectedComponentId: null,
         selectedSideItemId: null,
         activeDragSource: null,
@@ -1289,7 +1290,6 @@ document.addEventListener("DOMContentLoaded", () => {
         locatedRack.rack.plannerState = {
             rackHeightRU: state.rackHeightRU,
             currentView: state.currentView,
-            showVacantSlots: state.showVacantSlots,
             rackProfile: state.rackProfile,
             components: state.rackComponents,
             sideCompartmentItems: state.sideCompartmentItems
@@ -1313,7 +1313,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const fallbackPayload = {
             rackHeightRU: Number(locatedRack.rack.heightRU) || defaultRackHeightRU,
             currentView: "front",
-            showVacantSlots: true,
             rackProfile: {
                 name: locatedRack.rack.name || "Main Rack",
                 tag: locatedRack.rack.tag || "RACK-01",
@@ -1396,7 +1395,6 @@ document.addEventListener("DOMContentLoaded", () => {
                 totalCalculatedConsumptionW: totalPowerW
             },
             totalCalculatedConsumptionW: totalPowerW,
-            showVacantSlots: state.showVacantSlots,
             components: state.rackComponents,
             sideCompartmentItems: state.sideCompartmentItems
         };
@@ -1438,7 +1436,6 @@ document.addEventListener("DOMContentLoaded", () => {
             minDepthClearanceCm: Number(payload.rackProfile?.minDepthClearanceCm) || 0,
             notes: String(payload.rackProfile?.notes || "").trim()
         };
-        state.showVacantSlots = payload.showVacantSlots !== false;
         state.rackComponents = nextComponents;
         state.sideCompartmentItems = normalizeSideCompartmentState(payload.sideCompartmentItems);
         state.selectedComponentId = null;
@@ -1529,7 +1526,6 @@ document.addEventListener("DOMContentLoaded", () => {
         viewLegendEl.textContent = state.currentView === "front"
             ? "Front view: showing components mounted on the front face."
             : "Rear view: rear-side placement is allowed when rack depth and clearance permit it.";
-        toggleVacantSlotsButton.textContent = state.showVacantSlots ? "Hide Vacant Slots" : "Show Vacant Slots";
         toggleViewButton.textContent = state.currentView === "front" ? "Switch to Rear View" : "Switch to Front View";
     }
 
@@ -1644,11 +1640,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const slotLabelRight = document.createElement("div");
             const slotIndex = position - 1;
             const slotTop = rackPositionToTop(position, rackUnitHeightRU);
-            const isVacant = state.currentView === "front"
-                ? !state.rackSlots[slotIndex].front
-                : !state.rackSlots[slotIndex].rear;
-
-            slot.className = `rack-slot${state.showVacantSlots && isVacant ? " is-vacant" : ""}`;
+            slot.className = "rack-slot";
             slot.style.top = `${slotTop}px`;
             slot.style.height = `${rackUnitPixelHeight}px`;
 
@@ -1951,6 +1943,14 @@ document.addEventListener("DOMContentLoaded", () => {
         libraryFormToggleButton.setAttribute("aria-expanded", isExpanded ? "true" : "false");
         libraryFormToggleButton.setAttribute("aria-label", `${isExpanded ? "Hide" : "Show"} add library component form`);
         libraryFormToggleLabelEl.textContent = isExpanded ? "Hide" : "Show";
+    }
+
+    function syncSideCompartmentFormDisclosure() {
+        const isExpanded = Boolean(state.sideCompartmentFormExpanded);
+        sideCompartmentFormCollapseEl.classList.toggle("show", isExpanded);
+        sideCompartmentFormToggleButton.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+        sideCompartmentFormToggleButton.setAttribute("aria-label", `${isExpanded ? "Hide" : "Show"} side compartments`);
+        sideCompartmentFormToggleLabelEl.textContent = isExpanded ? "Hide" : "Show";
     }
 
     function renderAll() {
@@ -2672,12 +2672,6 @@ document.addEventListener("DOMContentLoaded", () => {
         setNotice(`Rack height reduced to ${state.rackHeightRU} RU.`);
     }
 
-    function handleToggleVacantSlots() {
-        state.showVacantSlots = !state.showVacantSlots;
-        renderAll();
-        syncActiveRackToCatalog();
-    }
-
     function handleToggleView() {
         state.currentView = state.currentView === "front" ? "rear" : "front";
         if (getSelectedSideCompartmentItem()?.view !== state.currentView) {
@@ -3060,6 +3054,10 @@ document.addEventListener("DOMContentLoaded", () => {
             state.libraryFormExpanded = !state.libraryFormExpanded;
             syncLibraryFormDisclosure();
         });
+        sideCompartmentFormToggleButton.addEventListener("click", () => {
+            state.sideCompartmentFormExpanded = !state.sideCompartmentFormExpanded;
+            syncSideCompartmentFormDisclosure();
+        });
         addLibraryComponentButton.addEventListener("click", handleAddLibraryComponent);
         saveRackPropertiesButton.addEventListener("click", handleSaveRackProperties);
         saveSelectedComponentButton.addEventListener("click", handleSaveSelectedComponent);
@@ -3072,7 +3070,6 @@ document.addEventListener("DOMContentLoaded", () => {
         addCustomSideLabelRightButton.addEventListener("click", () => handleAddCustomSideLabel("right"));
         document.getElementById("increaseHeight").addEventListener("click", handleIncreaseRackHeight);
         document.getElementById("decreaseHeight").addEventListener("click", handleDecreaseRackHeight);
-        toggleVacantSlotsButton.addEventListener("click", handleToggleVacantSlots);
         toggleViewButton.addEventListener("click", handleToggleView);
         document.getElementById("saveRackButton").addEventListener("click", saveRackToFile);
         document.getElementById("saveLibraryButton").addEventListener("click", saveLibraryToFile);
@@ -3319,6 +3316,7 @@ document.addEventListener("DOMContentLoaded", () => {
     initializeColorPicker();
     initializeSelectedComponentColorPalette();
     syncLibraryFormDisclosure();
+    syncSideCompartmentFormDisclosure();
     renderAll();
     loadRackFromCatalog();
 });
