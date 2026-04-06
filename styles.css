@@ -100,6 +100,8 @@ textarea:focus {
 .planner-page {
     --planner-side-width: clamp(370px, 31vw, 440px);
     --planner-right-width: clamp(320px, 24vw, 390px);
+    --planner-panel-font-size: 15px;
+    --planner-panel-label-size: 13px;
 }
 
 .side-menu {
@@ -118,6 +120,7 @@ textarea:focus {
 .planner-page .side-menu {
     width: var(--planner-side-width);
     overflow-x: hidden;
+    font-size: var(--planner-panel-font-size);
 }
 
 .planner-page .side-menu > .panel-block {
@@ -132,10 +135,31 @@ textarea:focus {
     max-width: 100%;
 }
 
+.planner-page .side-menu input,
+.planner-page .side-menu select,
+.planner-page .side-menu textarea,
+.planner-page .side-menu button,
+.planner-page .properties-panel input,
+.planner-page .properties-panel select,
+.planner-page .properties-panel textarea,
+.planner-page .properties-panel button {
+    font-size: var(--planner-panel-font-size);
+}
+
 .side-menu h4,
 .side-menu h5,
 .rack-planner-container h5 {
     margin: 0 0 12px;
+}
+
+.planner-page .side-menu h4,
+.planner-page .properties-panel h4 {
+    font-size: 1.15rem;
+}
+
+.planner-page .side-menu h5,
+.planner-page .properties-panel h5 {
+    font-size: 1rem;
 }
 
 .nav-link-back {
@@ -166,6 +190,7 @@ textarea:focus {
 
 .planner-page .properties-panel {
     width: var(--planner-right-width);
+    font-size: var(--planner-panel-font-size);
 }
 
 .properties-panel h4,
@@ -175,7 +200,7 @@ textarea:focus {
 
 .prop-label {
     display: block;
-    font-size: 11px;
+    font-size: var(--planner-panel-label-size);
     font-weight: 600;
     color: var(--muted);
     letter-spacing: 0.04em;
@@ -194,18 +219,43 @@ textarea:focus {
     flex: 1;
     min-width: 0;
     padding: 8px 10px;
-    font-size: 13px;
+    font-size: 14px;
 }
 
 .planner-notice {
     border-radius: 12px;
-    border: 1px solid rgba(31, 106, 82, 0.2);
-    background: rgba(31, 106, 82, 0.07);
+    border: 1px solid rgba(92, 102, 95, 0.22);
+    background: rgba(255, 248, 236, 0.92);
     color: var(--ink);
     padding: 12px;
-    font-size: 13px;
+    font-size: 14px;
     line-height: 1.5;
     min-height: 68px;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.planner-notice--info {
+    border-color: rgba(92, 102, 95, 0.22);
+    background: rgba(255, 248, 236, 0.92);
+    color: var(--ink);
+}
+
+.planner-notice--success {
+    border-color: rgba(31, 106, 82, 0.28);
+    background: rgba(229, 244, 237, 0.96);
+    color: #183a2d;
+}
+
+.planner-notice--warning {
+    border-color: rgba(173, 111, 24, 0.34);
+    background: rgba(255, 241, 209, 0.98);
+    color: #5f3c00;
+}
+
+.planner-notice--error {
+    border-color: rgba(142, 46, 46, 0.36);
+    background: rgba(252, 226, 226, 0.98);
+    color: #681f1f;
 }
 
 .panel-block {
@@ -244,6 +294,7 @@ textarea:focus {
 
 .panel-block__title {
     margin: 0;
+    font-size: 1rem;
 }
 
 .panel-toggle {
@@ -845,13 +896,14 @@ textarea:focus {
 .equipment__name {
     grid-area: name;
     font-weight: 700;
+    font-size: 14px;
     color: #fff;
 }
 
 .equipment__meta {
     grid-area: meta;
     color: rgba(255, 255, 255, 0.86);
-    font-size: 12px;
+    font-size: 13px;
 }
 
 .equipment__actions {
@@ -880,7 +932,7 @@ textarea:focus {
 .message-banner {
     margin-top: 10px;
     color: var(--muted);
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .side-item-library {
@@ -903,12 +955,12 @@ textarea:focus {
 }
 
 .side-item-library-card__title {
-    font-size: 13px;
+    font-size: 14px;
     font-weight: 700;
 }
 
 .side-item-library-card__meta {
-    font-size: 12px;
+    font-size: 13px;
     color: rgba(255, 255, 255, 0.84);
 }
 
@@ -923,7 +975,7 @@ textarea:focus {
 }
 
 .library-field-label {
-    font-size: 11px;
+    font-size: var(--planner-panel-label-size);
     font-weight: 700;
     color: var(--muted);
     text-transform: uppercase;
@@ -932,7 +984,7 @@ textarea:focus {
 
 .field-hint {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     color: var(--danger);
     line-height: 1.4;
 }

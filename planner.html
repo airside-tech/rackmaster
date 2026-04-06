@@ -183,11 +183,11 @@
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Rack Height (RU)</label>
-                    <input type="number" id="rackHeightInput" placeholder="e.g. 42" min="1">
+                    <input type="number" id="rackHeightInput" placeholder="e.g. 42" min="1" max="50">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Rack Depth (cm)</label>
-                    <input type="number" id="rackDepthInput" placeholder="e.g. 100" min="0">
+                    <input type="number" id="rackDepthInput" placeholder="e.g. 100" min="20">
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Room / Site</label>
@@ -232,6 +232,7 @@
                 <div class="field-group">
                     <label class="prop-label">Depth (cm)</label>
                     <input type="number" id="selectedComponentDepth" placeholder="—" min="0">
+                    <span class="field-hint" id="hintSelectedDepth"></span>
                 </div>
                 <div class="field-group">
                     <label class="prop-label">Power (W)</label>
