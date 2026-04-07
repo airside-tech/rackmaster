@@ -135,6 +135,10 @@ function validateCatalogPayload(parsedCatalog) {
     if (!parsedCatalog || !Array.isArray(parsedCatalog.rooms)) {
         throw new Error("Invalid catalog format");
     }
+
+    if (parsedCatalog.rooms.length === 0) {
+        throw new Error("Catalog contains no rooms to import.");
+    }
 }
 
 function normalizeCatalogRackWidths(catalogPayload) {
@@ -184,6 +188,13 @@ export function initIndexPage() {
 
     function setStatus(message) {
         statusEl.textContent = message;
+    }
+
+    function formatImportErrorMessage(error) {
+        if (error && typeof error.message === "string" && error.message.trim()) {
+            return `Could not import catalog file: ${error.message}`;
+        }
+        return "Could not import catalog file.";
     }
 
     function persistAndRender() {
@@ -318,8 +329,12 @@ export function initIndexPage() {
     }
 
     async function importCatalogFromFormat(format, source) {
-        const parsedCatalog = format === "xlsx"
+        const parsedResult = format === "xlsx"
             ? xlsxBufferToCatalogPayload(source)
+            : null;
+
+        const parsedCatalog = format === "xlsx"
+            ? parsedResult.payload
             : format === "csv"
                 ? csvToCatalog(source)
                 : JSON.parse(source);
@@ -333,7 +348,18 @@ export function initIndexPage() {
         normalizeCatalogRackWidths(catalog);
 
         persistAndRender();
-        setStatus(`Catalog imported from ${format.toUpperCase()}.`);
+
+        const roomCount = catalog.rooms.length;
+        const rackCount = catalog.rooms.reduce((total, room) => total + ((room.racks || []).length), 0);
+        const warnings = format === "xlsx" && Array.isArray(parsedResult?.warnings) ? parsedResult.warnings : [];
+
+        if (warnings.length > 0) {
+            console.warn("Catalog import warnings:", warnings);
+            setStatus(`Catalog imported from ${format.toUpperCase()} (${roomCount} rooms, ${rackCount} racks, ${warnings.length} warning(s)). First warning: ${warnings[0]}`);
+            return;
+        }
+
+        setStatus(`Catalog imported from ${format.toUpperCase()} (${roomCount} rooms, ${rackCount} racks).`);
     }
 
     createRoomButton.addEventListener("click", () => {
@@ -493,8 +519,8 @@ export function initIndexPage() {
 
                 await importCatalogFromFormat(format, rawText);
                 return;
-            } catch (_error) {
-                setStatus("Could not import catalog file.");
+            } catch (error) {
+                setStatus(formatImportErrorMessage(error));
                 return;
             }
         }
@@ -516,8 +542,8 @@ export function initIndexPage() {
                 : await readTextFromInput(importCatalogInput);
 
             await importCatalogFromFormat(format, source);
-        } catch (_error) {
-            setStatus("Could not import catalog file.");
+        } catch (error) {
+            setStatus(formatImportErrorMessage(error));
         } finally {
             importCatalogInput.value = "";
         }
