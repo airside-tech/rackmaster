@@ -1,93 +1,97 @@
 # Rackmaster
 
-A web-based data rack planning and management tool for IT professionals. Rackmaster helps you organize, visualize, and manage your equipment rooms and server racks efficiently.
+Rackmaster is a browser-based rack planning tool for managing rooms, racks, and equipment layouts. It runs fully client-side, stores data locally, and supports practical import/export workflows for JSON, CSV, and XLSX.
 
-## Features
+## New and Current Features
 
-- **Equipment Room Management**: Create and organize equipment rooms by building and floor level
-- **Rack Configuration**: Define racks with custom heights (RU), depths, widths, power consumption specifications, and tags
-- **Visual Planning**: Drag-and-drop interface to arrange equipment within racks
-- **Catalog Management**: Export and import your equipment catalogs as JSON, CSV, or XLSX for backup and sharing
-- **Excel Bulk Editing**: Edit large sets of rooms, racks, and library items in Microsoft Excel and import them back as .xlsx
-- **Local Storage**: All data is stored locally in your browser for quick access and offline capability
-- **Flexible Organization**: Track rack positions using tile coordinates (X, Y) for accurate facility mapping
-
-## Getting Started
-
-### Quick Start
-
-1. **Open the application**: Open `index.html` in your web browser
-2. **Create an Equipment Room**:
-   - Enter room name, building, floor level, and optional notes
-   - Click "Create Room"
-3. **Add Racks**:
-   - Select the room from the dropdown
-   - Enter rack name, tag (e.g., RACK-01), height in RU, width in cm, and other specifications
-   - Specify the rack's position using tile coordinates
-   - Click "Create Rack"
-4. **Plan Your Layout**:
-   - Open the planner to visually arrange equipment within your racks
-   - Click "Open Empty Planner" or access racks from the room sections
-
-### Managing Your Catalog
-
-- **Export**: Save your catalog and library files as JSON, CSV, or XLSX. Rack files currently support JSON and CSV. When exporting, choose format and destination in the browser save dialog (when supported).
-- **Import**: Load previously exported JSON, CSV, or XLSX files for catalog and library data. Rack files currently support JSON and CSV.
-
-Spreadsheet notes:
-
-- CSV and XLSX exports are designed for bulk editing and only show user-editable columns.
-- Internal fields such as IDs, timestamps, and planner JSON are not shown in spreadsheet exports.
-- Catalog spreadsheet import matches racks by Building + Floor + Room + Rack Tag so existing rack contents can be preserved behind the scenes.
-- Rack width is included in spreadsheet schemas. In planner view, width changes scale side compartments while the center 19-inch section remains fixed.
-- JSON remains the best option for full-fidelity backup and restore.
-
-### Excel Bulk Edit Workflow
-
-1. Export catalog or library as XLSX.
-2. Open the file in Microsoft Excel and edit rows in bulk.
-3. Keep header names and row types intact.
-4. Import the XLSX file back into Rackmaster.
-
-Notes:
-
-- Catalog import uses replace behavior (imports overwrite current catalog data).
-- Library import updates the current planner library from the imported workbook.
-- Spreadsheet imports regenerate hidden IDs and timestamps automatically.
-
-## File Structure
-
-- `index.html` - Main application interface for room and rack management
-- `planner.html` - Visual rack planning interface
-- `script.js` - Application logic and local storage management
-- `styles.css` - Application styling
-
-## Technical Details
-
-- **Storage**: Data is persisted using browser localStorage
-- **Browser Compatibility**: Modern browsers with localStorage support
-- **No Backend Required**: Runs entirely in the browser
+- Room and rack catalog management by building, floor, and room.
+- Rack metadata support for RU height, depth, width, tile coordinates, power, tag, and notes.
+- Planner with drag-and-drop placement, front/rear view switching, and side view context.
+- Side compartment support on both sides (front/rear), including custom side labels.
+- Rack profile editing (name, tag, room, owner/description, clearance, notes).
+- Placement checks for fit, overlap, and depth conflicts across opposite faces.
+- Rack and library import/export:
+  - Catalog: JSON, CSV, XLSX
+  - Rack: JSON, CSV
+  - Library: JSON, CSV, XLSX
+- Spreadsheet-friendly bulk editing for catalog and library.
+- PDF drawing export from planner, including front/rear/side views and equipment schedule.
+- Browser localStorage persistence for catalog and planner state.
 
 ## How to Use
 
-### Basic Workflow
+### 1) Start the App
 
-1. Start by creating equipment rooms that represent different locations in your facility
-2. Add racks to each room, specifying their physical characteristics
-3. Use the planner interface to organize equipment within racks
-4. Export your catalog regularly for backup purposes
+1. Open index.html in a modern browser.
+2. Create at least one room (name, building, floor, optional notes).
+3. Add a rack to a room (name, tag, height, depth, width, position, power, notes).
 
-### Tips
+### 2) Open Planner for a Rack
 
-- Use consistent naming conventions for racks (e.g., RACK-01, RACK-02) for easy reference
-- Include building and floor information in room creation for better organization
-- Add notes to rooms and racks to track special considerations or equipment types
-- Use tile coordinates to accurately map rack positions in your facility layout
+1. From the room list, open a rack in planner.
+2. Add components to the library category list.
+3. Drag components into rack positions.
+4. Toggle front/rear view to inspect both faces.
+5. Add side compartment items as needed.
+
+### 3) Save and Share Data
+
+1. Export catalog for full site-level backup.
+2. Export rack files for single-rack handoff.
+3. Export library files for reusable equipment templates.
+4. Export PDF from planner for printable documentation.
+
+## Import and Export Notes
+
+- JSON is the best format for full-fidelity backup and restore.
+- CSV/XLSX are intended for bulk editing of user-facing fields.
+- Spreadsheet imports regenerate or reconcile internal IDs as required.
+- Catalog editable imports match rooms/racks by Building + Floor + Room + Rack Tag.
+- Rack import validates component fit against rack dimensions before applying.
+
+## File Structure
+
+Top-level files:
+
+- index.html: Catalog page entry point (rooms and racks).
+- planner.html: Planner page entry point for rack editing and drawing export.
+- script.js: Bootstraps the correct page initializer.
+- styles.css: Shared styles for index and planner pages.
+
+Core modules:
+
+- js/modules/storage.js: Read/write catalog state in localStorage.
+- js/modules/fileIO.js: File picker and save helpers.
+- js/modules/catalogFormat.js: JSON/CSV conversion for catalog, rack, and library payloads.
+- js/modules/excelInterop.js: XLSX conversion for catalog and library payloads.
+- js/modules/shared/chooseDataFormat.js: Format selection dialog used by import/export flows.
+
+Page-specific initializers:
+
+- js/modules/index/initIndexPage.js: Catalog page logic and catalog import/export.
+- js/modules/planner/initPlannerPage.js: Planner composition and module wiring.
+
+Planner subsystem highlights:
+
+- js/modules/planner/actions.js: User actions and editing handlers.
+- js/modules/planner/dragDrop.js: Drag-and-drop behavior.
+- js/modules/planner/placementEngine.js: Placement rules, occupancy, depth/conflict analysis.
+- js/modules/planner/fileFlows.js: Rack/library import-export workflows.
+- js/modules/planner/pdfExport.js: Planner-to-PDF drawing export.
+- js/modules/planner/sideCompartments.js: Side compartment state, normalization, and helpers.
+- js/modules/planner/renderRackViews.js, renderPanels.js, renderLibraryAndSide.js: UI rendering pipeline.
+- js/modules/planner/rackCatalogSync.js: Keeps planner edits synchronized to catalog storage.
+
+## Technical Notes
+
+- No backend required.
+- Works in modern browsers with localStorage.
+- Uses browser file APIs and falls back to input-based upload when needed.
 
 ## License
 
-See LICENSE file for details.
+See LICENSE for details.
 
 ## Support
 
-For issues or feature requests, please contact the development team at airside-tech.
+For issues or feature requests, contact the development team at airside-tech.
