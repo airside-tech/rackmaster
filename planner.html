@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Rack Planner</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="planner-page">
+    <div class="side-menu">
+        <a class="nav-link-back" href="index.html">Back to Rack List</a>
+        <h4>Component Library</h4>
+        <div class="panel-block">
+            <div id="accordion"></div>
+        </div>
+        <div class="panel-block">
+            <div class="panel-block__header">
+                <h5 class="panel-block__title">Add Library Component</h5>
+                <button
+                    id="libraryFormToggle"
+                    class="panel-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="libraryFormCollapse"
+                >
+                    <span id="libraryFormToggleLabel">Show</span>
+                </button>
+            </div>
+            <div id="libraryFormCollapse" class="collapse">
+                <div id="libraryForm" class="stack-form stack-form--top-gap">
+                    <select id="libraryCategorySelect"></select>
+                    <input type="text" id="libraryNewCategoryName" placeholder="New Category (when selected)">
+                    <span class="field-hint" id="hintLibraryCategory"></span>
+                    <input type="text" id="libraryComponentName" placeholder="Component Name">
+                    <span class="field-hint" id="hintLibraryName"></span>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentHeight">Default Height (RU)</label>
+                        <input type="number" id="libraryComponentHeight" placeholder="e.g. 1" min="1">
+                    </div>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentClass">Manufacturer / Description</label>
+                        <input type="text" id="libraryComponentClass" placeholder="e.g. Cisco / Access Switch">
+                    </div>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentDepth">Default Depth (cm)</label>
+                        <input type="number" id="libraryComponentDepth" placeholder="e.g. 60" min="0">
+                    </div>
+                    <div class="field-group">
+                        <label class="library-field-label" for="libraryComponentPower">Power Usage (W)</label>
+                        <input type="number" id="libraryComponentPower" placeholder="e.g. 250" min="0">
+                    </div>
+                    <div id="colorPicker" class="compact-color-picker">
+                        <div class="compact-color-picker__header">
+                            <span class="compact-color-picker__title">Color</span>
+                            <div class="compact-color-picker__preview selected-color-preview" id="selectedColorPreview" style="background: linear-gradient(135deg, #1f6a52, #2c9874);"></div>
+                        </div>
+                        <div class="compact-color-picker__controls">
+                            <div class="color-preset-grid" id="colorPresetGrid"></div>
+                            <input type="color" id="customColorInput" aria-label="Custom default component color">
+                        </div>
+                    </div>
+                    <button id="addLibraryComponent">Add to Library</button>
+                </div>
+            </div>
+        </div>
+        <div class="panel-block">
+            <div class="panel-block__header">
+                <h5 class="panel-block__title">Side Compartments</h5>
+                <button
+                    id="sideCompartmentFormToggle"
+                    class="panel-toggle"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="sideCompartmentFormCollapse"
+                >
+                    <span id="sideCompartmentFormToggleLabel">Show</span>
+                </button>
+            </div>
+            <div id="sideCompartmentFormCollapse" class="collapse">
+                <div id="sideCompartmentFormBody" class="stack-form stack-form--top-gap">
+                    <div id="sideCompartmentLibrary" class="side-item-library"></div>
+                    <div class="stack-form side-item-form">
+                        <div class="field-group">
+                            <label class="library-field-label" for="customSideLabelName">Custom Side Label</label>
+                            <input type="text" id="customSideLabelName" placeholder="e.g. Uplink Bundle">
+                        </div>
+                        <div class="field-group">
+                            <label class="library-field-label" for="customSideLabelNotes">Notes</label>
+                            <textarea id="customSideLabelNotes" placeholder="Optional notes for this side label"></textarea>
+                        </div>
+                        <div class="field-group">
+                            <label class="library-field-label" for="customSideLabelColor">Color</label>
+                            <input type="color" id="customSideLabelColor" value="#7d8994">
+                        </div>
+                        <div class="selection-actions">
+                            <button id="addCustomSideLabelLeft" type="button">Add To Left</button>
+                            <button id="addCustomSideLabelRight" type="button">Add To Right</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="panel-block">
+            <h5>Library File</h5>
+            <div class="file-actions">
+                <button id="saveLibraryButton">Save Library</button>
+                <input type="file" id="loadLibraryInput" accept=".json,.csv,.xlsx" style="display: none;">
+                <button id="loadLibraryButton">Load Library</button>
+            </div>
+            <p class="format-note">Library CSV/XLSX are ideal for bulk editing. Use JSON to preserve everything exactly.</p>
+        </div>
+        <div class="panel-block">
+            <h5>Rack File</h5>
+            <div class="file-actions">
+                <button id="saveRackButton">Save Rack</button>
+                <input type="file" id="loadRackInput" accept=".json,.csv" style="display: none;">
+                <button id="loadRackButton">Load Rack</button>
+            </div>
+            <p class="format-note">Rack CSV is simplified for editing. Use JSON if you want complete backup and restore fidelity.</p>
+        </div>
+        <div class="panel-block">
+            <h5>Export Drawing</h5>
+            <div class="file-actions">
+                <button id="exportDrawingButton">Export to PDF</button>
+            </div>
+        </div>
+    </div>
+    <main class="rack-planner-container">
+        <section class="planner-toolbar panel-block">
+            <div id="rackIdentityBar" class="rack-identity" title="Click to edit rack properties">
+                <div id="rackNameTag" class="rack-name-tag">Main Rack [RACK-01]</div>
+                <div id="viewModeBadge" class="view-mode-badge">FRONT SIDE</div>
+            </div>
+            <div id="controls" class="toolbar-row">
+                <button id="increaseHeight">Increase Height</button>
+                <button id="decreaseHeight">Decrease Height</button>
+                <button id="toggleViewButton">Switch to Rear View</button>
+            </div>
+            <div id="rackInfo"></div>
+        </section>
+
+        <section class="rack-stage panel-block">
+            <h5 id="rackStageHeading" class="rack-stage-heading">Active Side: Front</h5>
+            <div class="rack-views-row">
+                <div id="rackFrame" class="rack-frame">
+                    <div class="rack-frame__inner">
+                        <div id="sideCompartmentLeft" class="rack-side-compartment" data-side="left"></div>
+                        <div id="rack"></div>
+                        <div id="sideCompartmentRight" class="rack-side-compartment" data-side="right"></div>
+                    </div>
+                </div>
+                <div class="rack-side-panel">
+                    <div class="rack-side-face-labels">
+                        <span id="rackSideLabelFront" class="rack-side-face-label rack-side-face-label--front" data-face="front">FRONT</span>
+                        <span id="rackSideLabelRear" class="rack-side-face-label rack-side-face-label--rear" data-face="rear">REAR</span>
+                    </div>
+                    <div class="rack-side-frame">
+                        <div class="rack-side-view-wrapper">
+                            <div id="rackSideView" class="rack-side-view"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="viewLegend" class="view-legend"></div>
+        </section>
+
+    </main>
+
+    <aside class="properties-panel">
+        <h4>Properties</h4>
+        <div class="panel-block">
+            <h5>Planner Notice</h5>
+            <div id="plannerNotice" class="planner-notice">Drag a component into the rack or create a custom component below.</div>
+        </div>
+        <div class="panel-block" id="rackPropertiesPanel">
+            <h5>Rack Properties</h5>
+            <div id="rackPropertiesInfo" class="message-banner">Click rack header to edit rack metadata.</div>
+            <div id="rackPropertiesForm" class="stack-form">
+                <div class="field-group">
+                    <label class="prop-label">Rack Name</label>
+                    <input type="text" id="rackNameInput" placeholder="Rack name">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Tag</label>
+                    <input type="text" id="rackTagInput" placeholder="RACK-01">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Height (RU)</label>
+                    <input type="number" id="rackHeightInput" placeholder="e.g. 42" min="1" max="50">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Depth (cm)</label>
+                    <input type="number" id="rackDepthInput" placeholder="e.g. 100" min="20">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Rack Width (cm)</label>
+                    <input type="number" id="rackWidthInput" placeholder="e.g. 60" min="40">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Room / Site</label>
+                    <input type="text" id="rackRoomInput" placeholder="Room A / Datacenter 1">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Description / Content</label>
+                    <input type="text" id="rackOwnerInput" placeholder="Rack description">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Minimum Depth Clearance (cm)</label>
+                    <input type="number" id="rackClearanceInput" placeholder="e.g. 20 [cm]" min="20">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Notes</label>
+                    <textarea id="rackNotesInput" placeholder="Free notes for this rack"></textarea>
+                </div>
+            </div>
+            <div class="selection-actions">
+                <button id="saveRackProperties" type="button">Save Rack Properties</button>
+            </div>
+        </div>
+
+        <div class="panel-block" id="selectedEditorPanel">
+            <div class="panel-block__header panel-block__header--stacked">
+                <div>
+                    <h5>Selected Item</h5>
+                    <div id="selectedEditorMode" class="panel-mode-badge">No Selection</div>
+                </div>
+            </div>
+            <div id="selectedEditorInfo" class="message-banner">Select a component or library item to edit.</div>
+            <div id="selectedEditorForm" class="stack-form">
+                <div class="field-group">
+                    <label class="prop-label">Name</label>
+                    <input type="text" id="selectedComponentName" placeholder="—">
+                    <span class="field-hint" id="hintSelectedName"></span>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Height (RU)</label>
+                    <input type="number" id="selectedComponentHeight" placeholder="—" min="1">
+                </div>
+                <div class="field-group selected-editor-component-only">
+                    <label class="prop-label">Start U</label>
+                    <input type="number" id="selectedComponentPosition" placeholder="—" min="1">
+                    <span class="field-hint" id="hintSelectedPosition"></span>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Depth (cm)</label>
+                    <input type="number" id="selectedComponentDepth" placeholder="—" min="0">
+                    <span class="field-hint" id="hintSelectedDepth"></span>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Power (W)</label>
+                    <input type="number" id="selectedComponentPower" placeholder="—" min="0">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Manufacturer / Description</label>
+                    <input type="text" id="selectedComponentDescription" placeholder="e.g. Cisco / Access Switch">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Standard Color</label>
+                    <div id="selectedComponentColorPresets" class="selected-color-palette"></div>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Custom Color (optional)</label>
+                    <input type="color" id="selectedComponentColor" placeholder="—">
+                </div>
+                <div class="field-group selected-editor-component-only">
+                    <label class="prop-label">Notes</label>
+                    <textarea id="selectedComponentNotes" placeholder="Free notes for this component"></textarea>
+                </div>
+            </div>
+            <div class="selection-actions">
+                <button id="saveSelectedEditor" type="button">Save Changes</button>
+                <button id="deleteSelectedEditor" type="button">Delete</button>
+                <button id="clearSelectedEditor" type="button">Clear</button>
+            </div>
+        </div>
+
+        <div class="panel-block">
+            <h5>Selected Side Item</h5>
+            <div id="selectedSideItemInfo" class="message-banner">Select a side-compartment item to edit.</div>
+            <div id="selectedSideItemForm" class="stack-form">
+                <div class="field-group">
+                    <label class="prop-label">Label</label>
+                    <input type="text" id="selectedSideItemName" placeholder="—">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Side</label>
+                    <select id="selectedSideItemSide">
+                        <option value="left">Left</option>
+                        <option value="right">Right</option>
+                    </select>
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Color</label>
+                    <input type="color" id="selectedSideItemColor" value="#7d8994">
+                </div>
+                <div class="field-group">
+                    <label class="prop-label">Notes</label>
+                    <textarea id="selectedSideItemNotes" placeholder="Free notes for this side item"></textarea>
+                </div>
+            </div>
+            <div class="selection-actions">
+                <button id="saveSelectedSideItem" type="button">Save Side Item</button>
+                <button id="deleteSelectedSideItem" type="button">Delete</button>
+                <button id="clearSideItemSelection" type="button">Clear</button>
+            </div>
+        </div>
+    </aside>
+
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script type="module" src="script.js"></script>
+</body>
+</html>
