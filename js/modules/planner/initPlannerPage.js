@@ -88,6 +88,9 @@ export function initPlannerPage() {
     const sideCompartmentFormToggleButton = document.getElementById("sideCompartmentFormToggle");
     const sideCompartmentFormToggleLabelEl = document.getElementById("sideCompartmentFormToggleLabel");
     const sideCompartmentFormCollapseEl = document.getElementById("sideCompartmentFormCollapse");
+    const rackPropertiesToggleButton = document.getElementById("rackPropertiesToggle");
+    const rackPropertiesToggleLabelEl = document.getElementById("rackPropertiesToggleLabel");
+    const rackPropertiesCollapseEl = document.getElementById("rackPropertiesCollapse");
     const addLibraryComponentButton = document.getElementById("addLibraryComponent");
     const selectedEditorPanelEl = document.getElementById("selectedEditorPanel");
     const selectedEditorModeEl = document.getElementById("selectedEditorMode");
@@ -109,7 +112,7 @@ export function initPlannerPage() {
     const addCustomSideLabelLeftButton = document.getElementById("addCustomSideLabelLeft");
     const addCustomSideLabelRightButton = document.getElementById("addCustomSideLabelRight");
 
-    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackWidthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !sideCompartmentFormToggleButton || !sideCompartmentFormToggleLabelEl || !sideCompartmentFormCollapseEl || !addLibraryComponentButton || !selectedEditorPanelEl || !selectedEditorModeEl || !saveSelectedEditorButton || !deleteSelectedEditorButton || !clearSelectedEditorButton || !selectedEditorInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
+    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackWidthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !sideCompartmentFormToggleButton || !sideCompartmentFormToggleLabelEl || !sideCompartmentFormCollapseEl || !rackPropertiesToggleButton || !rackPropertiesToggleLabelEl || !rackPropertiesCollapseEl || !addLibraryComponentButton || !selectedEditorPanelEl || !selectedEditorModeEl || !saveSelectedEditorButton || !deleteSelectedEditorButton || !clearSelectedEditorButton || !selectedEditorInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
         return;
     }
 
@@ -158,6 +161,7 @@ export function initPlannerPage() {
     const renderStatus = () => plannerUi.renderStatus();
     const syncLibraryFormDisclosure = () => plannerUi.syncLibraryFormDisclosure();
     const syncSideCompartmentFormDisclosure = () => plannerUi.syncSideCompartmentFormDisclosure();
+    const syncRackPropertiesDisclosure = () => plannerUi.syncRackPropertiesDisclosure();
     const bindEvents = () => plannerUi.bindEvents();
     const initializeColorPicker = () => plannerUi.initializeColorPicker();
     const initializeSelectedEditorColorPalette = () => plannerUi.initializeSelectedEditorColorPalette();
@@ -426,6 +430,9 @@ export function initPlannerPage() {
         sideCompartmentFormCollapseEl,
         sideCompartmentFormToggleButton,
         sideCompartmentFormToggleLabelEl,
+        rackPropertiesCollapseEl,
+        rackPropertiesToggleButton,
+        rackPropertiesToggleLabelEl,
         colorPresets,
         getDefaultColor,
         setDefaultColor,
@@ -479,6 +486,7 @@ export function initPlannerPage() {
     initializeSelectedEditorColorPalette();
     syncLibraryFormDisclosure();
     syncSideCompartmentFormDisclosure();
+    syncRackPropertiesDisclosure();
     renderAll();
     loadRackFromCatalog();
 }

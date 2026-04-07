@@ -77,6 +77,9 @@ export function createPlannerUi(context) {
         sideCompartmentFormCollapseEl,
         sideCompartmentFormToggleButton,
         sideCompartmentFormToggleLabelEl,
+        rackPropertiesCollapseEl,
+        rackPropertiesToggleButton,
+        rackPropertiesToggleLabelEl,
         colorPresets,
         getDefaultColor,
         setDefaultColor,
@@ -298,6 +301,14 @@ export function createPlannerUi(context) {
         sideCompartmentFormToggleLabelEl.textContent = isExpanded ? "Hide" : "Show";
     }
 
+    function syncRackPropertiesDisclosure() {
+        const isExpanded = Boolean(state.rackPropertiesPanelExpanded);
+        rackPropertiesCollapseEl.classList.toggle("show", isExpanded);
+        rackPropertiesToggleButton.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+        rackPropertiesToggleButton.setAttribute("aria-label", `${isExpanded ? "Hide" : "Show"} rack properties`);
+        rackPropertiesToggleLabelEl.textContent = isExpanded ? "Hide" : "Show";
+    }
+
     function renderSelectedEditorPanel() {
         renderSelectedEditorPanelView({
             state,
@@ -345,6 +356,7 @@ export function createPlannerUi(context) {
             state,
             libraryFormToggleButton,
             sideCompartmentFormToggleButton,
+            rackPropertiesToggleButton,
             addLibraryComponentButton,
             saveRackPropertiesButton,
             saveSelectedEditorButton,
@@ -368,6 +380,7 @@ export function createPlannerUi(context) {
             sideViewEl,
             syncLibraryFormDisclosure,
             syncSideCompartmentFormDisclosure,
+            syncRackPropertiesDisclosure,
             plannerFileFlows,
             handleExportDrawingPdf: getHandleExportDrawingPdf(),
             plannerActions: getPlannerActions(),
@@ -424,6 +437,7 @@ export function createPlannerUi(context) {
         renderSideViewFaceLabels,
         renderStatus,
         syncLibraryFormDisclosure,
+        syncRackPropertiesDisclosure,
         syncSideCompartmentFormDisclosure,
         updateSelectedEditorPaletteSelection
     };

@@ -3,6 +3,7 @@ export function bindPlannerEvents(context) {
         state,
         libraryFormToggleButton,
         sideCompartmentFormToggleButton,
+        rackPropertiesToggleButton,
         addLibraryComponentButton,
         saveRackPropertiesButton,
         saveSelectedEditorButton,
@@ -26,6 +27,7 @@ export function bindPlannerEvents(context) {
         sideViewEl,
         syncLibraryFormDisclosure,
         syncSideCompartmentFormDisclosure,
+        syncRackPropertiesDisclosure,
         plannerFileFlows,
         handleExportDrawingPdf,
         plannerActions,
@@ -41,6 +43,10 @@ export function bindPlannerEvents(context) {
     sideCompartmentFormToggleButton.addEventListener("click", () => {
         state.sideCompartmentFormExpanded = !state.sideCompartmentFormExpanded;
         syncSideCompartmentFormDisclosure();
+    });
+    rackPropertiesToggleButton.addEventListener("click", () => {
+        state.rackPropertiesPanelExpanded = !state.rackPropertiesPanelExpanded;
+        syncRackPropertiesDisclosure();
     });
     addLibraryComponentButton.addEventListener("click", plannerActions.handleAddLibraryComponent);
     saveRackPropertiesButton.addEventListener("click", handleSaveRackProperties);
@@ -70,8 +76,16 @@ export function bindPlannerEvents(context) {
         }
     });
 
-    rackIdentityBarEl.addEventListener("click", openRackPropertiesEditor);
-    rackInfoEl.addEventListener("click", openRackPropertiesEditor);
+    rackIdentityBarEl.addEventListener("click", () => {
+        state.rackPropertiesPanelExpanded = true;
+        syncRackPropertiesDisclosure();
+        openRackPropertiesEditor();
+    });
+    rackInfoEl.addEventListener("click", () => {
+        state.rackPropertiesPanelExpanded = true;
+        syncRackPropertiesDisclosure();
+        openRackPropertiesEditor();
+    });
 
     rackEl.addEventListener("dragover", plannerDragDrop.updateDragPreview);
     rackEl.addEventListener("drop", plannerDragDrop.handleRackDrop);

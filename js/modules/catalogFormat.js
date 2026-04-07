@@ -52,7 +52,6 @@ const rackCsvHeaders = [
 const libraryCsvHeaders = [
     "rowType",
     "categoryName",
-    "itemId",
     "itemName",
     "ru",
     "typeClass",
@@ -328,7 +327,6 @@ function libraryPayloadToCsv(payload) {
         rows.push({
             rowType: "category",
             categoryName: category.name || "",
-            itemId: "",
             itemName: "",
             ru: "",
             typeClass: "",
@@ -342,7 +340,6 @@ function libraryPayloadToCsv(payload) {
             rows.push({
                 rowType: "item",
                 categoryName: category.name || "",
-                itemId: item.id || "",
                 itemName: item.name || "",
                 ru: asNumber(item.ru, 1),
                 typeClass: item.typeClass || "default-component",

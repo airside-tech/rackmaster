@@ -16,6 +16,7 @@ import {
     minimumRackWidthCm,
     warningRackHeightRU
 } from "./state.js";
+import { createId } from "../typeUtils.js";
 import { normalizeSideCompartmentState } from "./sideCompartments.js";
 import { getTotalPowerConsumption, rebuildRackSlots } from "./placementEngine.js";
 
@@ -30,16 +31,119 @@ export function createPlannerFileFlows(context) {
         cloneRackComponent
     } = context;
 
-    function loadLibraryFromFile(payload) {
+    function normalizeLibraryLookupText(value) {
+        return String(value || "").trim().toLowerCase();
+    }
+
+    function buildLibraryItemKey(categoryName, itemName) {
+        return `${normalizeLibraryLookupText(categoryName)}|${normalizeLibraryLookupText(itemName)}`;
+    }
+
+    function buildExistingItemIdLookup() {
+        const existingItemIdByKey = new Map();
+        (state.libraryCategories || []).forEach(category => {
+            (category.items || []).forEach(item => {
+                const key = buildLibraryItemKey(category.name, item.name);
+                if (key === "|") {
+                    return;
+                }
+                existingItemIdByKey.set(key, item.id);
+            });
+        });
+        return existingItemIdByKey;
+    }
+
+    function getNextLibraryId(usedIds) {
+        let nextId = createId("library");
+        while (usedIds.has(nextId)) {
+            nextId = createId("library");
+        }
+        return nextId;
+    }
+
+    function reconcileLibraryPayloadIds(payload) {
+        const existingItemIdByKey = buildExistingItemIdLookup();
+        const usedIds = new Set();
+        const seenItemKeys = new Set();
+        let preservedIdCount = 0;
+        let generatedIdCount = 0;
+
+        const normalizedCategories = (payload.categories || []).map(category => {
+            const categoryName = String(category?.name || "").trim();
+            return {
+                name: categoryName,
+                items: (category?.items || []).map(item => ({
+                    ...item,
+                    name: String(item?.name || "").trim(),
+                    id: String(item?.id || "").trim() || null
+                }))
+            };
+        });
+
+        normalizedCategories.forEach(category => {
+            (category.items || []).forEach(item => {
+                if (!item.name) {
+                    throw new Error(`Category '${category.name || "Unnamed Category"}' contains an item with an empty name.`);
+                }
+
+                const itemKey = buildLibraryItemKey(category.name, item.name);
+                if (seenItemKeys.has(itemKey)) {
+                    throw new Error(`Duplicate item name '${item.name}' found in category '${category.name || "Unnamed Category"}'.`);
+                }
+                seenItemKeys.add(itemKey);
+
+                const preservedId = existingItemIdByKey.get(itemKey) || null;
+                if (preservedId) {
+                    item.id = preservedId;
+                    preservedIdCount += 1;
+                }
+
+                const candidateId = item.id || null;
+                if (candidateId && usedIds.has(candidateId)) {
+                    throw new Error(`Duplicate item ID '${candidateId}' found during import. Use unique item names per category or remove legacy itemId values.`);
+                }
+
+                if (!candidateId) {
+                    item.id = getNextLibraryId(usedIds);
+                    generatedIdCount += 1;
+                }
+
+                usedIds.add(item.id);
+            });
+        });
+
+        return {
+            payload: {
+                ...payload,
+                categories: normalizedCategories
+            },
+            preservedIdCount,
+            generatedIdCount
+        };
+    }
+
+    function loadLibraryFromFile(payload, format = "json") {
         if (!payload || !Array.isArray(payload.categories)) {
             setNotice("Library file is missing a categories array.");
             return;
         }
 
-        state.libraryCategories = createLibraryState(payload.categories);
+        const isEditableImport = format === "csv" || format === "xlsx";
+        const normalizedPayload = isEditableImport
+            ? reconcileLibraryPayloadIds(payload)
+            : { payload, preservedIdCount: 0, generatedIdCount: 0 };
+
+        state.libraryCategories = createLibraryState(normalizedPayload.payload.categories);
         state.selectedLibraryCategoryId = null;
         state.selectedLibraryItemId = null;
         renderAll();
+
+        const itemCount = state.libraryCategories.reduce((sum, category) => sum + (category.items || []).length, 0);
+        if (isEditableImport) {
+            setNotice(`Library loaded with ${state.libraryCategories.length} categories and ${itemCount} items. Preserved ${normalizedPayload.preservedIdCount} IDs, generated ${normalizedPayload.generatedIdCount} IDs automatically.`);
+            return;
+        }
+
         setNotice(`Library loaded with ${state.libraryCategories.length} categories.`);
     }
 
@@ -77,7 +181,7 @@ export function createPlannerFileFlows(context) {
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     ".xlsx"
                 );
-                setNotice(saved ? "Library exported as XLSX." : "Library export canceled.");
+                setNotice(saved ? "Library exported as XLSX. Item IDs are managed automatically during import." : "Library export canceled.");
             } catch (error) {
                 setNotice(`Could not export library as XLSX: ${error.message}`);
             }
@@ -92,7 +196,17 @@ export function createPlannerFileFlows(context) {
             isCsv ? "text/csv" : "application/json",
             isCsv ? ".csv" : ".json"
         );
-        setNotice(saved ? `Library exported as ${format.toUpperCase()}.` : "Library export canceled.");
+        if (!saved) {
+            setNotice("Library export canceled.");
+            return;
+        }
+
+        if (isCsv) {
+            setNotice("Library exported as CSV. Item IDs are managed automatically during import.");
+            return;
+        }
+
+        setNotice(`Library exported as ${format.toUpperCase()}.`);
     }
 
     function loadRackFromFile(payload) {
@@ -230,7 +344,7 @@ export function createPlannerFileFlows(context) {
                         return;
                     }
                     const payload = xlsxBufferToLibraryPayload(workbookBuffer);
-                    loadLibraryFromFile(payload);
+                    loadLibraryFromFile(payload, format);
                     return;
                 }
 
@@ -240,7 +354,7 @@ export function createPlannerFileFlows(context) {
                     return;
                 }
                 const payload = format === "csv" ? csvToLibraryPayload(rawText) : JSON.parse(rawText);
-                loadLibraryFromFile(payload);
+                loadLibraryFromFile(payload, format);
             } catch (error) {
                 setNotice(`Could not load library file: ${error.message}`);
             }
@@ -277,7 +391,7 @@ export function createPlannerFileFlows(context) {
                 : format === "csv"
                     ? csvToLibraryPayload(await readTextFromInput(loadLibraryInput))
                     : JSON.parse(await readTextFromInput(loadLibraryInput));
-            loadLibraryFromFile(payload);
+            loadLibraryFromFile(payload, format);
         } catch (error) {
             setNotice(`Could not load library file: ${error.message}`);
         } finally {

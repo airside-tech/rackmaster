@@ -172,9 +172,15 @@
             <div id="plannerNotice" class="planner-notice">Drag a component into the rack or create a custom component below.</div>
         </div>
         <div class="panel-block" id="rackPropertiesPanel">
-            <h5>Rack Properties</h5>
+            <div class="panel-block__header">
+                <h5>Rack Properties</h5>
+                <button id="rackPropertiesToggle" class="panel-toggle" type="button" aria-expanded="false" aria-controls="rackPropertiesCollapse" aria-label="Show rack properties">
+                    <span id="rackPropertiesToggleLabel">Show</span>
+                </button>
+            </div>
             <div id="rackPropertiesInfo" class="message-banner">Click rack header to edit rack metadata.</div>
-            <div id="rackPropertiesForm" class="stack-form">
+            <div id="rackPropertiesCollapse" class="collapse">
+                <div id="rackPropertiesForm" class="stack-form">
                 <div class="field-group">
                     <label class="prop-label">Rack Name</label>
                     <input type="text" id="rackNameInput" placeholder="Rack name">
@@ -211,9 +217,10 @@
                     <label class="prop-label">Notes</label>
                     <textarea id="rackNotesInput" placeholder="Free notes for this rack"></textarea>
                 </div>
-            </div>
-            <div class="selection-actions">
-                <button id="saveRackProperties" type="button">Save Rack Properties</button>
+                </div>
+                <div class="selection-actions">
+                    <button id="saveRackProperties" type="button">Save Rack Properties</button>
+                </div>
             </div>
         </div>
 

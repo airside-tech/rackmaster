@@ -102,6 +102,7 @@ export function createInitialPlannerState() {
         rackSlots: createEmptyRackSlots(defaultRackHeightRU),
         libraryFormExpanded: false,
         sideCompartmentFormExpanded: false,
+        rackPropertiesPanelExpanded: false,
         selectedComponentId: null,
         selectedLibraryCategoryId: null,
         selectedLibraryItemId: null,

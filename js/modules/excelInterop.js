@@ -241,7 +241,6 @@ export function libraryPayloadToXlsxBuffer(payload) {
     const headers = [
         "rowType",
         "categoryName",
-        "itemId",
         "itemName",
         "ru",
         "typeClass",
@@ -256,7 +255,6 @@ export function libraryPayloadToXlsxBuffer(payload) {
         rows.push({
             rowType: "category",
             categoryName: category.name || "",
-            itemId: "",
             itemName: "",
             ru: "",
             typeClass: "",
@@ -270,7 +268,6 @@ export function libraryPayloadToXlsxBuffer(payload) {
             rows.push({
                 rowType: "item",
                 categoryName: category.name || "",
-                itemId: item.id || "",
                 itemName: item.name || "",
                 ru: asNumber(item.ru, 1),
                 typeClass: item.typeClass || "default-component",
