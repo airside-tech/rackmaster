@@ -52,6 +52,8 @@ function buildPlannerState(room, rack, existingPlannerState) {
             tag: rack.tag,
             room: buildRoomDisplayLabel(room),
             owner: "",
+            powerA: rack.powerA || "",
+            powerB: rack.powerB || "",
             rackDepthCm: Number(rack.depth) || 0,
             rackWidthCm,
             minDepthClearanceCm: 0,
@@ -67,6 +69,8 @@ function buildPlannerState(room, rack, existingPlannerState) {
         name: rack.name,
         tag: rack.tag,
         room: buildRoomDisplayLabel(room),
+        powerA: rack.powerA || nextPlannerState.rackProfile.powerA || "",
+        powerB: rack.powerB || nextPlannerState.rackProfile.powerB || "",
         rackDepthCm: Number(rack.depth) || 0,
         rackWidthCm,
         notes: rack.notes || ""
@@ -171,6 +175,8 @@ export function initIndexPage() {
     const newRackWidthInput = document.getElementById("newRackWidth");
     const newPowerInput = document.getElementById("newPowerConsumption");
     const newRackNotesInput = document.getElementById("newRackNotes");
+    const newRackPowerAInput = document.getElementById("newRackPowerA");
+    const newRackPowerBInput = document.getElementById("newRackPowerB");
     const createRackButton = document.getElementById("createNewRack");
     const roomSectionsEl = document.getElementById("roomSections");
     const statusEl = document.getElementById("indexStatus");
@@ -179,7 +185,7 @@ export function initIndexPage() {
     const importCatalogInput = document.getElementById("importCatalogInput");
     const clearCatalogButton = document.getElementById("clearCatalogButton");
 
-    if (!roomNameInput || !buildingInput || !floorInput || !roomNotesInput || !createRoomButton || !newRackNameInput || !rackRoomSelect || !newRackTagInput || !newRackHeightInput || !newTileXInput || !newTileYInput || !newRackDepthInput || !newRackWidthInput || !newPowerInput || !newRackNotesInput || !createRackButton || !roomSectionsEl || !statusEl || !exportCatalogButton || !importCatalogButton || !importCatalogInput || !clearCatalogButton) {
+    if (!roomNameInput || !buildingInput || !floorInput || !roomNotesInput || !createRoomButton || !newRackNameInput || !rackRoomSelect || !newRackTagInput || !newRackHeightInput || !newTileXInput || !newTileYInput || !newRackDepthInput || !newRackWidthInput || !newPowerInput || !newRackNotesInput || !newRackPowerAInput || !newRackPowerBInput || !createRackButton || !roomSectionsEl || !statusEl || !exportCatalogButton || !importCatalogButton || !importCatalogInput || !clearCatalogButton) {
         return;
     }
 
@@ -412,6 +418,8 @@ export function initIndexPage() {
         const width = Math.max(minimumRackWidthCm, Number(newRackWidthInput.value) || defaultRackWidthCm);
         const power = Number(newPowerInput.value) || 0;
         const notes = newRackNotesInput.value.trim();
+        const powerA = newRackPowerAInput.value.trim();
+        const powerB = newRackPowerBInput.value.trim();
 
         const newRack = {
             id: createCatalogId("rack"),
@@ -432,6 +440,8 @@ export function initIndexPage() {
                     tag: rackTag,
                     room: buildRoomDisplayLabel(room),
                     owner: "",
+                    powerA,
+                    powerB,
                     rackDepthCm: depth,
                     rackWidthCm: width,
                     minDepthClearanceCm: 0,
@@ -457,6 +467,8 @@ export function initIndexPage() {
         newRackWidthInput.value = "60";
         newPowerInput.value = "0";
         newRackNotesInput.value = "";
+        newRackPowerAInput.value = "";
+        newRackPowerBInput.value = "";
         persistAndRender();
         setStatus(`Created rack ${rackName} in ${room.name}.`);
     });

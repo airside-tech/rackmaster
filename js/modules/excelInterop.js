@@ -119,7 +119,9 @@ export function catalogPayloadToXlsxBuffer(catalogPayload) {
         "depth",
         "width",
         "power",
-        "rackNotes"
+        "rackNotes",
+        "rackPowerA",
+        "rackPowerB"
     ];
 
     const rows = [];
@@ -140,7 +142,9 @@ export function catalogPayloadToXlsxBuffer(catalogPayload) {
             depth: "",
             width: "",
             power: "",
-            rackNotes: ""
+            rackNotes: "",
+            rackPowerA: "",
+            rackPowerB: ""
         });
 
         (Array.isArray(room.racks) ? room.racks : []).forEach(rack => {
@@ -158,7 +162,9 @@ export function catalogPayloadToXlsxBuffer(catalogPayload) {
                 depth: asNumber(rack.depth, 0),
                 width: asNumber(rack.width, 60),
                 power: asNumber(rack.power, 0),
-                rackNotes: rack.notes || ""
+                rackNotes: rack.notes || "",
+                rackPowerA: rack.powerA || "",
+                rackPowerB: rack.powerB || ""
             });
         });
     });
@@ -217,6 +223,8 @@ export function xlsxBufferToCatalogPayload(buffer) {
                 width: parseNumberWithWarning(record.width, 60, "width", rowNumber, warnings),
                 power: parseNumberWithWarning(record.power, 0, "power", rowNumber, warnings),
                 notes: String(record.rackNotes || "").trim(),
+                powerA: String(record.rackPowerA || "").trim(),
+                powerB: String(record.rackPowerB || "").trim(),
                 plannerState: null,
                 updatedAt: ""
             });

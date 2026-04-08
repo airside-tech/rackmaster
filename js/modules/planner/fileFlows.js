@@ -240,6 +240,8 @@ export function createPlannerFileFlows(context) {
             tag: String(payload.rackProfile?.tag || "RACK-01").trim() || "RACK-01",
             room: String(payload.rackProfile?.room || "").trim(),
             owner: String(payload.rackProfile?.owner || "").trim(),
+            powerA: String(payload.rackProfile?.powerA || "").trim(),
+            powerB: String(payload.rackProfile?.powerB || "").trim(),
             rackDepthCm: nextRackDepthCm,
             rackWidthCm: nextRackWidthCm,
             minDepthClearanceCm: Number(payload.rackProfile?.minDepthClearanceCm) || 0,

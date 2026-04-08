@@ -78,6 +78,8 @@ export function initPlannerPage() {
     const rackWidthInput = document.getElementById("rackWidthInput");
     const rackRoomInput = document.getElementById("rackRoomInput");
     const rackOwnerInput = document.getElementById("rackOwnerInput");
+    const rackPowerAInput = document.getElementById("rackPowerAInput");
+    const rackPowerBInput = document.getElementById("rackPowerBInput");
     const rackClearanceInput = document.getElementById("rackClearanceInput");
     const rackNotesInput = document.getElementById("rackNotesInput");
     const saveRackPropertiesButton = document.getElementById("saveRackProperties");
@@ -112,7 +114,7 @@ export function initPlannerPage() {
     const addCustomSideLabelLeftButton = document.getElementById("addCustomSideLabelLeft");
     const addCustomSideLabelRightButton = document.getElementById("addCustomSideLabelRight");
 
-    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackWidthInput || !rackRoomInput || !rackOwnerInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !sideCompartmentFormToggleButton || !sideCompartmentFormToggleLabelEl || !sideCompartmentFormCollapseEl || !rackPropertiesToggleButton || !rackPropertiesToggleLabelEl || !rackPropertiesCollapseEl || !addLibraryComponentButton || !selectedEditorPanelEl || !selectedEditorModeEl || !saveSelectedEditorButton || !deleteSelectedEditorButton || !clearSelectedEditorButton || !selectedEditorInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
+    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackWidthInput || !rackRoomInput || !rackOwnerInput || !rackPowerAInput || !rackPowerBInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !sideCompartmentFormToggleButton || !sideCompartmentFormToggleLabelEl || !sideCompartmentFormCollapseEl || !rackPropertiesToggleButton || !rackPropertiesToggleLabelEl || !rackPropertiesCollapseEl || !addLibraryComponentButton || !selectedEditorPanelEl || !selectedEditorModeEl || !saveSelectedEditorButton || !deleteSelectedEditorButton || !clearSelectedEditorButton || !selectedEditorInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
         return;
     }
 
@@ -355,6 +357,8 @@ export function initPlannerPage() {
         rackWidthInput,
         rackRoomInput,
         rackOwnerInput,
+        rackPowerAInput,
+        rackPowerBInput,
         rackClearanceInput,
         rackNotesInput,
         readCatalog,
@@ -389,6 +393,8 @@ export function initPlannerPage() {
         rackWidthInput,
         rackRoomInput,
         rackOwnerInput,
+        rackPowerAInput,
+        rackPowerBInput,
         rackClearanceInput,
         rackNotesInput,
         plannerNoticeEl,

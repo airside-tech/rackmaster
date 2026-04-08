@@ -156,6 +156,8 @@ export function createPlannerUi(context) {
             rackWidthInput,
             rackRoomInput,
             rackOwnerInput,
+            rackPowerAInput,
+            rackPowerBInput,
             rackClearanceInput,
             rackNotesInput,
             rackFrameEl
@@ -259,6 +261,7 @@ export function createPlannerUi(context) {
             getRackDepthCm,
             getRackMinDepthClearanceCm,
             getComponentDepthCm,
+            getComponentBackground,
             getComponentFace,
             getOppositeFaceDepthPairs,
             getConflictingOppositeFaceComponentIds

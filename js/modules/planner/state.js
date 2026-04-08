@@ -91,6 +91,8 @@ export function createInitialPlannerState() {
             tag: "RACK-01",
             room: "",
             owner: "",
+            powerA: "",
+            powerB: "",
             rackDepthCm: minimumRackDepthCm,
             rackWidthCm: defaultRackWidthCm,
             minDepthClearanceCm: 0,

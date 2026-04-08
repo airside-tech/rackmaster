@@ -1,3 +1,11 @@
+/* 
+In the renderRackViews module, we have two main functions: renderRack and renderSideView. 
+ The renderRack function is responsible for rendering the main rack view, which includes the rack slots, components, 
+ and any blocked opposite face components. Each item gets assigned appropriate classes, styles, and event listeners for interactivity.
+
+ The renderSideView function renders a side view of the rack, showing the depth of components and any potential conflicts 
+ between front and rear components based on their depth.
+*/
 export function renderRack(context) {
     const {
         state,
@@ -129,6 +137,7 @@ export function renderSideView(context) {
         getRackDepthCm,
         getRackMinDepthClearanceCm,
         getComponentDepthCm,
+        getComponentBackground,
         getComponentFace,
         getOppositeFaceDepthPairs,
         getConflictingOppositeFaceComponentIds
@@ -188,6 +197,7 @@ export function renderSideView(context) {
             el.style.top = `${rackPositionToTop(component.position, component.ru)}px`;
             el.style.height = `${Math.max(component.ru * rackUnitPixelHeight - 2, 10)}px`;
             el.style.width = `${widthPx}px`;
+            el.style.background = getComponentBackground(component);
             el.title = `${component.name} (${componentDepthCm} cm ${face})`;
 
             if (face === "front") {

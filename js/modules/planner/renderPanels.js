@@ -26,6 +26,8 @@ export function renderRackProfile(context) {
         rackWidthInput,
         rackRoomInput,
         rackOwnerInput,
+        rackPowerAInput,
+        rackPowerBInput,
         rackClearanceInput,
         rackNotesInput,
         rackFrameEl
@@ -49,6 +51,8 @@ export function renderRackProfile(context) {
     rackWidthInput.value = rackWidthCm;
     rackRoomInput.value = state.rackProfile.room || "";
     rackOwnerInput.value = state.rackProfile.owner || "";
+    rackPowerAInput.value = state.rackProfile.powerA || "";
+    rackPowerBInput.value = state.rackProfile.powerB || "";
     rackClearanceInput.value = Number(state.rackProfile.minDepthClearanceCm) || 0;
     rackNotesInput.value = state.rackProfile.notes || "";
 

@@ -15,7 +15,9 @@ const catalogCsvHeaders = [
     "depth",
     "width",
     "power",
-    "rackNotes"
+    "rackNotes",
+    "rackPowerA",
+    "rackPowerB"
 ];
 
 const rackCsvHeaders = [
@@ -24,6 +26,8 @@ const rackCsvHeaders = [
     "rackTag",
     "rackRoom",
     "rackOwner",
+    "rackPowerA",
+    "rackPowerB",
     "rackHeightRU",
     "currentView",
     "rackDepthCm",
@@ -80,7 +84,9 @@ function catalogToCsv(catalogPayload) {
             depth: "",
             width: "",
             power: "",
-            rackNotes: ""
+            rackNotes: "",
+            rackPowerA: "",
+            rackPowerB: ""
         });
 
         (Array.isArray(room.racks) ? room.racks : []).forEach(rack => {
@@ -98,7 +104,9 @@ function catalogToCsv(catalogPayload) {
                 depth: asNumber(rack.depth, 0),
                 width: asNumber(rack.width, 60),
                 power: asNumber(rack.power, 0),
-                rackNotes: rack.notes || ""
+                rackNotes: rack.notes || "",
+                rackPowerA: rack.powerA || "",
+                rackPowerB: rack.powerB || ""
             });
         });
     });
@@ -144,6 +152,8 @@ function csvToCatalog(csvText) {
                 width: asNumber(record.width, 60),
                 power: asNumber(record.power, 0),
                 notes: String(record.rackNotes || "").trim(),
+                powerA: String(record.rackPowerA || "").trim(),
+                powerB: String(record.rackPowerB || "").trim(),
                 plannerState: null,
                 updatedAt: ""
             });
@@ -161,6 +171,8 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
             rackTag: payload.rackProfile?.tag || "RACK-01",
             rackRoom: payload.rackProfile?.room || "",
             rackOwner: payload.rackProfile?.owner || "",
+            rackPowerA: payload.rackProfile?.powerA || "",
+            rackPowerB: payload.rackProfile?.powerB || "",
             rackHeightRU: asNumber(payload.rackHeightRU, defaultRackHeightRU),
             currentView: payload.currentView === "rear" ? "rear" : "front",
             rackDepthCm: asNumber(payload.rackProfile?.rackDepthCm, 0),
@@ -194,6 +206,8 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
             rackTag: "",
             rackRoom: "",
             rackOwner: "",
+            rackPowerA: "",
+            rackPowerB: "",
             rackHeightRU: "",
             currentView: "",
             rackDepthCm: "",
@@ -230,6 +244,8 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
                     rackTag: "",
                     rackRoom: "",
                     rackOwner: "",
+                    rackPowerA: "",
+                    rackPowerB: "",
                     rackHeightRU: "",
                     currentView: "",
                     rackDepthCm: "",
@@ -310,6 +326,8 @@ function csvToRackPayload(csvText, defaultRackHeightRU = 42) {
             tag: String(meta.rackTag || "RACK-01").trim() || "RACK-01",
             room: String(meta.rackRoom || "").trim(),
             owner: String(meta.rackOwner || "").trim(),
+            powerA: String(meta.rackPowerA || "").trim(),
+            powerB: String(meta.rackPowerB || "").trim(),
             rackDepthCm: asNumber(meta.rackDepthCm, 0),
             rackWidthCm: asNumber(meta.rackWidthCm, 60),
             minDepthClearanceCm: asNumber(meta.rackMinDepthClearanceCm, 0),

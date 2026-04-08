@@ -10,6 +10,8 @@ export function createRackCatalogHandlers(context) {
         rackWidthInput,
         rackRoomInput,
         rackOwnerInput,
+        rackPowerAInput,
+        rackPowerBInput,
         rackClearanceInput,
         rackNotesInput,
         readCatalog,
@@ -79,6 +81,8 @@ export function createRackCatalogHandlers(context) {
             tag: nextTag,
             room: rackRoomInput.value.trim(),
             owner: rackOwnerInput.value.trim(),
+            powerA: rackPowerAInput.value.trim(),
+            powerB: rackPowerBInput.value.trim(),
             rackDepthCm: nextDepthCm,
             rackWidthCm: nextWidthCm,
             minDepthClearanceCm: Number(rackClearanceInput.value) || 0,
@@ -112,6 +116,8 @@ export function createRackCatalogHandlers(context) {
         locatedRack.rack.depth = Math.max(minimumRackDepthCm, Number(state.rackProfile.rackDepthCm) || minimumRackDepthCm);
         locatedRack.rack.width = Math.max(minimumRackWidthCm, Number(state.rackProfile.rackWidthCm) || defaultRackWidthCm);
         locatedRack.rack.notes = state.rackProfile.notes || locatedRack.rack.notes || "";
+        locatedRack.rack.powerA = state.rackProfile.powerA || "";
+        locatedRack.rack.powerB = state.rackProfile.powerB || "";
         locatedRack.rack.updatedAt = new Date().toISOString();
         locatedRack.rack.plannerState = {
             rackHeightRU: state.rackHeightRU,
@@ -145,6 +151,8 @@ export function createRackCatalogHandlers(context) {
                 tag: locatedRack.rack.tag || "RACK-01",
                 room: `${locatedRack.room.name || ""} (${locatedRack.room.building || ""} / ${locatedRack.room.floor || ""})`,
                 owner: "",
+                powerA: locatedRack.rack.powerA || locatedRack.rack.plannerState?.rackProfile?.powerA || "",
+                powerB: locatedRack.rack.powerB || locatedRack.rack.plannerState?.rackProfile?.powerB || "",
                 rackDepthCm: Math.max(minimumRackDepthCm, Number(locatedRack.rack.depth) || minimumRackDepthCm),
                 rackWidthCm: Math.max(minimumRackWidthCm, Number(locatedRack.rack.width) || Number(locatedRack.rack.plannerState?.rackProfile?.rackWidthCm) || defaultRackWidthCm),
                 minDepthClearanceCm: Number(locatedRack.rack.plannerState?.rackProfile?.minDepthClearanceCm) || 0,
