@@ -1,6 +1,13 @@
 import { readCatalog, writeCatalog } from "../storage.js";
 import { createId, normalizeTypeClass } from "../typeUtils.js";
 import {
+    acquireRackLock,
+    ensureLockOwner,
+    isLockingEnabled,
+    releaseRackLock,
+    sendLockHeartbeat
+} from "./lockClient.js";
+import {
     adjustBrightness,
     colorPresets,
     getComponentBackground,
@@ -52,7 +59,7 @@ import { createPlannerHelpers } from "./helpers.js";
 import { createRackCatalogHandlers } from "./rackCatalogSync.js";
 import { createPlannerUi } from "./ui.js";
 
-export function initPlannerPage() {
+export async function initPlannerPage() {
     const rackFrameEl = document.getElementById("rackFrame");
     const rackEl = document.getElementById("rack");
     const rackStageHeadingEl = document.getElementById("rackStageHeading");
@@ -119,6 +126,124 @@ export function initPlannerPage() {
     }
 
     const state = createInitialPlannerState();
+    const lockState = {
+        enabled: isLockingEnabled() && Boolean(activeRackId),
+        canEdit: !(isLockingEnabled() && Boolean(activeRackId)),
+        owner: "",
+        heartbeatId: null
+    };
+
+    function canMutate() {
+        return lockState.canEdit;
+    }
+
+    function setMutatingControlsEnabled(enabled) {
+        const lockableElements = [
+            addLibraryComponentButton,
+            saveRackPropertiesButton,
+            saveSelectedEditorButton,
+            deleteSelectedEditorButton,
+            saveSelectedSideItemButton,
+            deleteSelectedSideItemButton,
+            addCustomSideLabelLeftButton,
+            addCustomSideLabelRightButton,
+            rackNameInput,
+            rackTagInput,
+            rackHeightInput,
+            rackDepthInput,
+            rackWidthInput,
+            rackRoomInput,
+            rackOwnerInput,
+            rackPowerAInput,
+            rackPowerBInput,
+            rackClearanceInput,
+            rackNotesInput,
+            customSideLabelNameInput,
+            customSideLabelNotesInput,
+            customSideLabelColorInput,
+            selectedComponentFields.name,
+            selectedComponentFields.ru,
+            selectedComponentFields.position,
+            selectedComponentFields.depth,
+            selectedComponentFields.power,
+            selectedComponentFields.description,
+            selectedComponentFields.color,
+            selectedComponentFields.notes,
+            selectedSideItemFields.name,
+            selectedSideItemFields.side,
+            selectedSideItemFields.color,
+            selectedSideItemFields.notes,
+            libraryCategorySelect,
+            libraryNewCategoryNameInput,
+            document.getElementById("libraryComponentName"),
+            document.getElementById("libraryComponentHeight"),
+            document.getElementById("libraryComponentClass"),
+            document.getElementById("libraryComponentDepth"),
+            document.getElementById("libraryComponentPower"),
+            document.getElementById("customColorInput"),
+            document.getElementById("increaseHeight"),
+            document.getElementById("decreaseHeight")
+        ].filter(Boolean);
+
+        lockableElements.forEach(element => {
+            element.disabled = !enabled;
+        });
+    }
+
+    async function initializeRackLock() {
+        if (!lockState.enabled || !activeRackId) {
+            setMutatingControlsEnabled(true);
+            return;
+        }
+
+        setMutatingControlsEnabled(false);
+        const owner = ensureLockOwner();
+        if (!owner) {
+            lockState.canEdit = false;
+            setNotice("No lock owner entered. Planner is read-only.", "warning");
+            return;
+        }
+
+        lockState.owner = owner;
+
+        try {
+            const lockResponse = await acquireRackLock(activeRackId, owner);
+            if (!lockResponse.locked) {
+                lockState.canEdit = false;
+                const heldBy = lockResponse.lock?.owner ? ` (held by ${lockResponse.lock.owner})` : "";
+                setNotice(`${lockResponse.message || "Could not acquire lock."}${heldBy}`, "warning");
+                setMutatingControlsEnabled(false);
+                return;
+            }
+
+            lockState.canEdit = true;
+            setMutatingControlsEnabled(true);
+            setNotice(`Edit lock acquired as ${owner}.`);
+
+            lockState.heartbeatId = window.setInterval(async () => {
+                const heartbeat = await sendLockHeartbeat(activeRackId, owner);
+                if (heartbeat.ok) {
+                    return;
+                }
+
+                lockState.canEdit = false;
+                setMutatingControlsEnabled(false);
+                if (lockState.heartbeatId) {
+                    window.clearInterval(lockState.heartbeatId);
+                    lockState.heartbeatId = null;
+                }
+                setNotice("Lock lost. Planner switched to read-only mode.", "warning");
+            }, 30000);
+
+            window.addEventListener("beforeunload", () => {
+                void releaseRackLock(activeRackId, owner);
+            });
+        } catch (error) {
+            lockState.canEdit = false;
+            setMutatingControlsEnabled(false);
+            setNotice(`Could not initialize lock service: ${error.message}`, "warning");
+        }
+    }
 
     const selectedComponentFields = {
         name: document.getElementById("selectedComponentName"),
@@ -271,7 +396,8 @@ export function initPlannerPage() {
         renderSelectedSideItemPanel,
         syncActiveRackToCatalog,
         setNotice,
-        renderStatus
+        renderStatus,
+        canMutate
     });
 
     const plannerDragDrop = createPlannerDragDrop({
@@ -295,7 +421,8 @@ export function initPlannerPage() {
         renderRack,
         renderAll,
         syncActiveRackToCatalog,
-        setNotice
+        setNotice,
+        canMutate
     });
 
     const {
@@ -367,7 +494,8 @@ export function initPlannerPage() {
         setActiveEditor,
         renderAll,
         setNotice,
-        plannerFileFlows
+        plannerFileFlows,
+        canMutate
     });
 
     const handleExportDrawingPdf = createPdfExportHandler({
@@ -495,4 +623,5 @@ export function initPlannerPage() {
     syncRackPropertiesDisclosure();
     renderAll();
     loadRackFromCatalog();
+    await initializeRackLock();
 }

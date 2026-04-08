@@ -36,8 +36,17 @@ export function createPlannerActions(context) {
         renderSelectedEditorPanel,
         renderSelectedSideItemPanel,
         syncActiveRackToCatalog,
-        setNotice
+        setNotice,
+        canMutate = () => true
     } = context;
+
+    function ensureCanMutate() {
+        if (canMutate()) {
+            return true;
+        }
+        setNotice("Rack is read-only because lock is held by another user.", "warning");
+        return false;
+    }
 
     function setFieldHint(inputId, hintId, message) {
         const inputEl = document.getElementById(inputId);
@@ -71,6 +80,9 @@ export function createPlannerActions(context) {
         });
     }
     function addComponentToRack(componentInput) {
+        if (!ensureCanMutate()) {
+            return false;
+        }
         const component = cloneRackComponent(componentInput);
         if (!component.name) {
             setNotice("A component name is required.");
@@ -103,6 +115,9 @@ export function createPlannerActions(context) {
     }
 
     function addSideCompartmentItem(itemInput, side = "left", view = state.currentView) {
+        if (!ensureCanMutate()) {
+            return false;
+        }
         const normalizedView = view === "rear" ? "rear" : "front";
         const normalizedSide = side === "right" ? "right" : "left";
         const nextItems = getSideCompartmentItems(normalizedView, normalizedSide);
@@ -130,6 +145,9 @@ export function createPlannerActions(context) {
     }
 
     function removeRackComponent(componentId, requireConfirmation = true) {
+        if (!ensureCanMutate()) {
+            return;
+        }
         const component = state.rackComponents.find(entry => entry.id === componentId);
         if (!component) {
             return;
@@ -158,6 +176,9 @@ export function createPlannerActions(context) {
     }
 
     function removeSideCompartmentItem(sideItemId, requireConfirmation = true) {
+        if (!ensureCanMutate()) {
+            return;
+        }
         const selectedSideItem = getAllSideCompartmentItems().find(item => item.id === sideItemId);
         if (!selectedSideItem) {
             return;
@@ -263,6 +284,9 @@ export function createPlannerActions(context) {
     }
 
     function handleSaveSelectedComponent() {
+        if (!ensureCanMutate()) {
+            return;
+        }
         clearFormHints("selectedEditorForm");
         const selectedComponent = getSelectedRackComponent();
         if (!selectedComponent) {
@@ -341,6 +365,9 @@ export function createPlannerActions(context) {
     }
 
     function handleSaveSelectedLibraryItem() {
+        if (!ensureCanMutate()) {
+            return;
+        }
         clearFormHints("selectedEditorForm");
         const selectedLibraryItem = getSelectedLibraryItem();
         if (!selectedLibraryItem) {
@@ -472,6 +499,9 @@ export function createPlannerActions(context) {
     }
 
     function handleSaveSelectedSideItem() {
+        if (!ensureCanMutate()) {
+            return;
+        }
         const selectedSideItem = getSelectedSideCompartmentItem();
         if (!selectedSideItem) {
             return;
@@ -516,6 +546,9 @@ export function createPlannerActions(context) {
     }
 
     function handleAddCustomSideLabel(side) {
+        if (!ensureCanMutate()) {
+            return;
+        }
         const name = customSideLabelNameInput.value.trim();
         const notes = String(customSideLabelNotesInput.value || "").trim();
         const customColor = customSideLabelColorInput.value || getDefaultSideItemColor("custom-label");
@@ -542,6 +575,9 @@ export function createPlannerActions(context) {
     }
 
     function removeLibraryComponent(categoryId, componentId) {
+        if (!ensureCanMutate()) {
+            return;
+        }
         state.libraryCategories = state.libraryCategories
             .map(category => {
                 if (category.id !== categoryId) {
@@ -570,6 +606,9 @@ export function createPlannerActions(context) {
     }
 
     function handleAddLibraryComponent() {
+        if (!ensureCanMutate()) {
+            return;
+        }
         clearFormHints("libraryForm");
         const selectedCategoryId = libraryCategorySelect.value;
         const rawNewCategoryName = libraryNewCategoryNameInput.value.trim();
@@ -634,6 +673,9 @@ export function createPlannerActions(context) {
     }
 
     function handleIncreaseRackHeight() {
+        if (!ensureCanMutate()) {
+            return;
+        }
         if (state.rackHeightRU >= maximumRackHeightRU) {
             setNotice(`Rack height cannot exceed ${maximumRackHeightRU} RU.`);
             return;
@@ -652,6 +694,9 @@ export function createPlannerActions(context) {
     }
 
     function handleDecreaseRackHeight() {
+        if (!ensureCanMutate()) {
+            return;
+        }
         const nextHeight = state.rackHeightRU - rackUnitHeightRU;
         if (nextHeight < getHighestOccupiedRU(state.rackComponents)) {
             setNotice("Cannot reduce rack height below the highest occupied U position.");

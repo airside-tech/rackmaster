@@ -20,6 +20,20 @@ Rackmaster is a browser-based rack planning tool for managing rooms, racks, and 
 
 ## How to Use
 
+### Running app locally (VSCode) - Live Server mode (unchanged workflow):
+Open app normally (no query parameter).
+It runs in local mode and uses browser storage as before.
+
+### API mode (prepared for):
+Start backend once Node.js/npm is available, change location to the rackmaster folder.
+>> npm install
+>> npm start
+
+Open:
+>> http://localhost:3000/index.html?mode=api
+Planner navigation will keep mode=api automatically
+
+
 ### 1) Start the App
 
 1. Open index.html in a modern browser.

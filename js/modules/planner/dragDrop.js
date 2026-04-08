@@ -20,10 +20,22 @@ export function createPlannerDragDrop(context) {
         renderRack,
         renderAll,
         syncActiveRackToCatalog,
-        setNotice
+        setNotice,
+        canMutate = () => true
     } = context;
 
+    function ensureCanMutate() {
+        if (canMutate()) {
+            return true;
+        }
+        setNotice("Rack is read-only because lock is held by another user.", "warning");
+        return false;
+    }
+
     function handleLibraryDragStart(event) {
+        if (!ensureCanMutate()) {
+            return;
+        }
         setActiveDragSource("library");
         const componentData = event.currentTarget.dataset.component;
         event.dataTransfer.setData("application/json", JSON.stringify({
@@ -46,6 +58,11 @@ export function createPlannerDragDrop(context) {
     }
 
     function handleSideCompartmentDrop(event) {
+        if (!ensureCanMutate()) {
+            clearSideCompartmentDropTargets();
+            clearActiveDragSource();
+            return;
+        }
         event.preventDefault();
         const payload = parseDraggedPayload(event);
         const targetSide = event.currentTarget.dataset.side === "right" ? "right" : "left";
@@ -106,6 +123,9 @@ export function createPlannerDragDrop(context) {
     }
 
     function handleRackComponentDragStart(event) {
+        if (!ensureCanMutate()) {
+            return;
+        }
         setActiveDragSource("rack");
         const componentEl = event.currentTarget;
         const componentId = componentEl.dataset.componentId;
@@ -162,6 +182,11 @@ export function createPlannerDragDrop(context) {
     }
 
     function handleRackDrop(event) {
+        if (!ensureCanMutate()) {
+            state.dragPreview = null;
+            renderRack();
+            return;
+        }
         event.preventDefault();
         const payload = parseDraggedPayload(event);
         state.dragPreview = null;

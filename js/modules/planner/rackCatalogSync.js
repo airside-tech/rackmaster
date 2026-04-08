@@ -20,7 +20,8 @@ export function createRackCatalogHandlers(context) {
         setActiveEditor,
         renderAll,
         setNotice,
-        plannerFileFlows
+        plannerFileFlows,
+        canMutate = () => true
     } = context;
     const minimumRackDepthCm = 20;
     const minimumRackWidthCm = 40;
@@ -46,6 +47,10 @@ export function createRackCatalogHandlers(context) {
     }
 
     function handleSaveRackProperties() {
+        if (!canMutate()) {
+            setNotice("Rack properties are read-only because lock is held by another user.", "warning");
+            return;
+        }
         const nextName = rackNameInput.value.trim() || "Main Rack";
         const nextTag = rackTagInput.value.trim() || "RACK-01";
         const rawNextHeightRU = Number(rackHeightInput.value) || state.rackHeightRU || defaultRackHeightRU;
@@ -100,6 +105,9 @@ export function createRackCatalogHandlers(context) {
     }
 
     function syncActiveRackToCatalog() {
+        if (!canMutate()) {
+            return;
+        }
         if (!activeRackId) {
             return;
         }

@@ -1,7 +1,7 @@
 import { openBinaryFileWithPicker, openTextFileWithPicker, readArrayBufferFromInput, readTextFromInput, saveBinaryFile, saveTextFile } from "../fileIO.js";
 import { catalogToCsv, csvToCatalog } from "../catalogFormat.js";
 import { catalogPayloadToXlsxBuffer, xlsxBufferToCatalogPayload } from "../excelInterop.js";
-import { readCatalog, writeCatalog } from "../storage.js";
+import { clearCatalogStorage, getCatalogStorageMode, readCatalog, writeCatalog } from "../storage.js";
 import { createCatalogId } from "../typeUtils.js";
 import { chooseDataFormat } from "../shared/chooseDataFormat.js";
 
@@ -304,7 +304,9 @@ export function initIndexPage() {
                     editButton.type = "button";
                     editButton.textContent = "Edit";
                     editButton.addEventListener("click", () => {
-                        window.location.href = `planner.html?rackId=${encodeURIComponent(rack.id)}`;
+                        const mode = new URLSearchParams(window.location.search).get("mode");
+                        const modeQuery = mode ? `&mode=${encodeURIComponent(mode)}` : "";
+                        window.location.href = `planner.html?rackId=${encodeURIComponent(rack.id)}${modeQuery}`;
                     });
 
                     const deleteRackButton = document.createElement("button");
@@ -562,19 +564,21 @@ export function initIndexPage() {
     });
 
     clearCatalogButton.addEventListener("click", () => {
-        const confirmed = window.confirm("Clear all RackMaster data stored in this browser?");
+        const isApiMode = getCatalogStorageMode() === "api";
+        const confirmMessage = isApiMode
+            ? "Clear all RackMaster catalog data from the shared API store? This affects all users."
+            : "Clear all RackMaster data stored in this browser?";
+        const confirmed = window.confirm(confirmMessage);
         if (!confirmed) {
             return;
         }
 
-        Object.keys(localStorage)
-            .filter(key => key.startsWith("rackplanner."))
-            .forEach(key => localStorage.removeItem(key));
+        clearCatalogStorage();
 
         catalog = { rooms: [] };
         renderRoomSelect();
         renderRoomSections();
-        setStatus("Local RackMaster browser data cleared.");
+        setStatus(isApiMode ? "Shared RackMaster catalog cleared via API." : "Local RackMaster browser data cleared.");
     });
 
     renderRoomSelect();
