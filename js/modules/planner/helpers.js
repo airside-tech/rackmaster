@@ -75,7 +75,21 @@ export function createPlannerHelpers(context) {
     }
 
     function reorderSideCompartmentItems(view, side) {
-        getSideCompartmentItems(view, side).forEach((item, index) => {
+        const items = getSideCompartmentItems(view, side)
+            .slice()
+            .sort((leftItem, rightItem) => {
+                const leftPosition = Number(leftItem.position) || 1;
+                const rightPosition = Number(rightItem.position) || 1;
+
+                if (leftPosition !== rightPosition) {
+                    return rightPosition - leftPosition;
+                }
+
+                return (Number(leftItem.order) || 0) - (Number(rightItem.order) || 0);
+            });
+
+        state.sideCompartmentItems[view === "rear" ? "rear" : "front"][side === "right" ? "right" : "left"] = items;
+        items.forEach((item, index) => {
             item.order = index + 1;
         });
     }
@@ -93,10 +107,11 @@ export function createPlannerHelpers(context) {
     function clearActiveDragSource() {
         state.activeDragSource = null;
         clearSideCompartmentDropTargets();
+        document.body.classList.remove("is-side-dragging");
     }
 
     function isSideCompartmentDragSourceActive() {
-        return state.activeDragSource === "side-library" || state.activeDragSource === "side-compartment";
+        return state.activeDragSource === "library" || state.activeDragSource === "side-library" || state.activeDragSource === "side-compartment";
     }
 
     function cloneRackComponent(component) {
@@ -162,6 +177,16 @@ export function createPlannerHelpers(context) {
         return Math.max(1, Math.min(rawPosition, maxStartPosition));
     }
 
+    function clientYToSideCompartmentPosition(clientY, sideCompartmentEl, componentHeightRU) {
+        const sideRect = sideCompartmentEl.getBoundingClientRect();
+        const yInSide = Math.max(0, Math.min(clientY - sideRect.top, sideRect.height - 1));
+        const slotIndexFromTop = Math.floor(yInSide / rackUnitPixelHeight);
+        const rawPosition = state.rackHeightRU - slotIndexFromTop - componentHeightRU + 1;
+        const maxStartPosition = Math.max(1, state.rackHeightRU - componentHeightRU + 1);
+
+        return Math.max(1, Math.min(rawPosition, maxStartPosition));
+    }
+
     function isRackPositionAvailable(position, componentHeightRU, componentIdToIgnore = null, face = state.currentView, depth = 0) {
         return isRackPositionAvailableInState(state, position, componentHeightRU, componentIdToIgnore, face, depth);
     }
@@ -187,6 +212,7 @@ export function createPlannerHelpers(context) {
     return {
         clearActiveDragSource,
         clearSideCompartmentDropTargets,
+        clientYToSideCompartmentPosition,
         clientYToRackPosition,
         cloneRackComponent,
         findFirstAvailablePosition,

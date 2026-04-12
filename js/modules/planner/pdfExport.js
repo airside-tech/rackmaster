@@ -59,13 +59,13 @@ export function createPdfExportHandler(context) {
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
             const frontCanvas = await html2canvas(rackFrameEl, {
-                scale: 2,
+                scale: 1,
                 backgroundColor: "#1a1d1b",
                 useCORS: true,
                 logging: false
             });
             const sideCanvas = await html2canvas(sidePanelEl, {
-                scale: 2,
+                scale: 1,
                 backgroundColor: null,
                 useCORS: true,
                 logging: false
@@ -76,10 +76,11 @@ export function createPdfExportHandler(context) {
             document.body.classList.add("view-rear");
             renderRack();
             renderSideCompartments();
+            renderSideView();
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
             const rearCanvas = await html2canvas(rackFrameEl, {
-                scale: 2,
+                scale: 1,
                 backgroundColor: "#1a1d1b",
                 useCORS: true,
                 logging: false
@@ -95,9 +96,9 @@ export function createPdfExportHandler(context) {
             const revDate = new Date().toISOString().slice(0, 10);
 
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-            const pageW = 297;
-            const pageH = 210;
+            const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+            const pageW = 210;
+            const pageH = 297;
             const margin = 12;
 
             const footerY = pageH - 5;
@@ -182,35 +183,39 @@ export function createPdfExportHandler(context) {
             doc.setLineWidth(0.4);
             doc.line(margin + metaW + 4, margin, margin + metaW + 4, pageH - margin);
 
-            const nativeFrontH = frontCanvas.height / 2;
-            const nativeFrontW = frontCanvas.width / 2;
-            const nativeSideW = sideCanvas.width / 2;
-            const nativeSideH = sideCanvas.height / 2;
-            const nativeRearW = rearCanvas.width / 2;
-            const nativeRearH = rearCanvas.height / 2;
+            const nativeFrontH = frontCanvas.height;
+            const nativeFrontW = frontCanvas.width;
+            const nativeSideW = sideCanvas.width;
+            const nativeSideH = sideCanvas.height;
+            const nativeRearW = rearCanvas.width;
+            const nativeRearH = rearCanvas.height;
 
             const viewsX = margin + metaW + 10;
             const viewsAvailW = pageW - viewsX - margin;
-            const viewsAvailH = pageH - margin - 18;
+            const viewsAvailH = pageH - margin - 22;
             const viewsY = margin + 10;
             const viewGap = 6;
 
-            const viewH = Math.min(viewsAvailH, 155);
-            const frontWRaw = viewH * nativeFrontW / nativeFrontH;
-            const sideWRaw = viewH * nativeSideW / nativeSideH;
-            const rearWRaw = viewH * nativeRearW / nativeRearH;
-            const totalRaw = frontWRaw + sideWRaw + rearWRaw + viewGap * 2;
-            const shrink = totalRaw > viewsAvailW ? viewsAvailW / totalRaw : 1;
+            const halfGap = viewGap / 2;
+            const columnW = (viewsAvailW - halfGap) / 2;
+            const viewRowH = (viewsAvailH - viewGap) / 2;
+            const frontScale = Math.min(columnW / nativeFrontW, viewRowH / nativeFrontH);
+            const sideScale = Math.min(columnW / nativeSideW, viewRowH / nativeSideH);
+            const rearScale = Math.min(columnW / nativeRearW, viewRowH / nativeRearH);
 
-            const frontW = frontWRaw * shrink;
-            const sideW = sideWRaw * shrink;
-            const rearW = rearWRaw * shrink;
-            const actualVH = viewH * shrink;
-            const gap = viewGap * shrink;
+            const frontW = nativeFrontW * frontScale;
+            const frontH = nativeFrontH * frontScale;
+            const sideW = nativeSideW * sideScale;
+            const sideH = nativeSideH * sideScale;
+            const rearW = nativeRearW * rearScale;
+            const rearH = nativeRearH * rearScale;
 
-            const frontX = viewsX;
-            const sideX = frontX + frontW + gap;
-            const rearX = sideX + sideW + gap;
+            const frontX = viewsX + (columnW - frontW) / 2;
+            const sideX = viewsX + columnW + halfGap + (columnW - sideW) / 2;
+            const rearX = viewsX + (columnW - rearW) / 2;
+            const frontY = viewsY;
+            const sideY = viewsY;
+            const rearY = viewsY + viewRowH + viewGap + (viewRowH - rearH) / 2;
 
             doc.setFont("helvetica", "bold");
             doc.setFontSize(7);
@@ -219,18 +224,18 @@ export function createPdfExportHandler(context) {
             const labelY = viewsY - 3;
             doc.text("FRONT VIEW", frontX + frontW / 2, labelY, { align: "center" });
             doc.text("SIDE VIEW (DEPTH)", sideX + sideW / 2, labelY, { align: "center" });
-            doc.text("REAR VIEW", rearX + rearW / 2, labelY, { align: "center" });
+            doc.text("REAR VIEW", rearX + rearW / 2, rearY - 3, { align: "center" });
             doc.setTextColor(0, 0, 0);
 
-            doc.addImage(frontCanvas.toDataURL("image/png"), "PNG", frontX, viewsY, frontW, actualVH);
-            doc.addImage(sideCanvas.toDataURL("image/png"), "PNG", sideX, viewsY, sideW, actualVH);
-            doc.addImage(rearCanvas.toDataURL("image/png"), "PNG", rearX, viewsY, rearW, actualVH);
+            doc.addImage(frontCanvas.toDataURL("image/jpeg", 0.82), "JPEG", frontX, frontY, frontW, frontH);
+            doc.addImage(sideCanvas.toDataURL("image/jpeg", 0.82), "JPEG", sideX, sideY, sideW, sideH);
+            doc.addImage(rearCanvas.toDataURL("image/jpeg", 0.82), "JPEG", rearX, rearY, rearW, rearH);
 
             doc.setDrawColor(100, 100, 100);
             doc.setLineWidth(0.2);
-            doc.rect(frontX, viewsY, frontW, actualVH);
-            doc.rect(sideX, viewsY, sideW, actualVH);
-            doc.rect(rearX, viewsY, rearW, actualVH);
+            doc.rect(frontX, frontY, frontW, frontH);
+            doc.rect(sideX, sideY, sideW, sideH);
+            doc.rect(rearX, rearY, rearW, rearH);
 
             doc.addPage();
 

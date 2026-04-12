@@ -82,10 +82,8 @@ export function renderRack(context) {
             const topRow = document.createElement("div");
             const bottomRow = document.createElement("div");
             const nameEl = document.createElement("span");
-            const depthEl = document.createElement("span");
             const rangeEl = document.createElement("span");
             const metaEl = document.createElement("span");
-            const depthCm = getComponentDepthCm(component);
             const powerW = Number(component.power) || 0;
 
             componentEl.className = `rack-component ${component.typeClass || "default-component"}`;
@@ -109,17 +107,14 @@ export function renderRack(context) {
             topRow.className = "rack-component__top";
             bottomRow.className = "rack-component__bottom";
             nameEl.className = "rack-component__name";
-            depthEl.className = "rack-component__depth";
             rangeEl.className = "rack-component__range";
             metaEl.className = "rack-component__meta";
 
             nameEl.textContent = component.name;
-            depthEl.textContent = `${depthCm} cm`;
             rangeEl.textContent = getComponentRangeLabel(component);
             metaEl.textContent = powerW > 0 ? `${powerW} W` : `${component.ru} RU`;
 
             topRow.appendChild(nameEl);
-            topRow.appendChild(depthEl);
             bottomRow.appendChild(rangeEl);
             bottomRow.appendChild(metaEl);
             componentEl.appendChild(topRow);
@@ -183,7 +178,6 @@ export function renderSideView(context) {
                 Math.max(14, Math.round((componentDepthCm / visualRackDepthCm) * sideViewWidthPx))
             );
             const el = document.createElement("div");
-            const labelEl = document.createElement("span");
 
             el.className = `rack-side-component rack-side-component--${face}`;
             if (conflictIds.has(component.id)) {
@@ -206,9 +200,6 @@ export function renderSideView(context) {
                 el.style.right = "0";
             }
 
-            labelEl.className = "rack-side-component__name";
-            labelEl.textContent = component.name;
-            el.appendChild(labelEl);
             sideViewEl.appendChild(el);
         });
 

@@ -1,12 +1,19 @@
 export const catalogStorageKey = "rackplanner.catalog.v1";
+export const catalogCorruptBackupKey = "rackplanner.catalog.v1.corrupt.backup";
 
-const defaultCatalog = { rooms: [] };
 let cachedCatalog = { rooms: [] };
+
+function createEmptyCatalog() {
+    return {
+        rooms: []
+    };
+}
 
 function normalizeCatalog(parsedCatalog) {
     const normalizedRooms = Array.isArray(parsedCatalog?.rooms) ? parsedCatalog.rooms : [];
     normalizedRooms.forEach(room => {
-        (Array.isArray(room.racks) ? room.racks : []).forEach(rack => {
+        room.racks = Array.isArray(room.racks) ? room.racks : [];
+        room.racks.forEach(rack => {
             if (!Number.isFinite(Number(rack.width))) {
                 rack.width = 60;
             }
@@ -79,15 +86,29 @@ export async function initializeCatalogStorage() {
 }
 
 function readCatalogFromLocalStorage() {
-    try {
+    const getAndParseLocalCatalog = () => {
         const rawCatalog = localStorage.getItem(catalogStorageKey);
         if (!rawCatalog) {
-            return { ...defaultCatalog };
+            return createEmptyCatalog();
         }
+
         const parsedCatalog = JSON.parse(rawCatalog);
         return normalizeCatalog(parsedCatalog);
-    } catch (_error) {
-        return { ...defaultCatalog };
+    };
+
+    try {
+        return getAndParseLocalCatalog();
+    } catch (error) {
+        try {
+            const rawCatalog = localStorage.getItem(catalogStorageKey);
+            if (rawCatalog) {
+                localStorage.setItem(catalogCorruptBackupKey, rawCatalog);
+            }
+        } catch (_backupError) {
+            // Ignore backup failures and continue with a clean catalog.
+        }
+        console.warn("RackMaster catalog could not be parsed from localStorage. Falling back to empty catalog.", error);
+        return createEmptyCatalog();
     }
 }
 
@@ -110,12 +131,16 @@ export function writeCatalog(catalog) {
         return;
     }
 
-    localStorage.setItem(catalogStorageKey, JSON.stringify(normalizedCatalog));
+    try {
+        localStorage.setItem(catalogStorageKey, JSON.stringify(normalizedCatalog));
+    } catch (error) {
+        console.warn("Could not persist RackMaster catalog to localStorage.", error);
+    }
 }
 
 export function clearCatalogStorage() {
     if (isApiMode()) {
-        cachedCatalog = { ...defaultCatalog };
+        cachedCatalog = createEmptyCatalog();
         writeCatalogToApi(cachedCatalog);
         return;
     }
@@ -123,5 +148,5 @@ export function clearCatalogStorage() {
     Object.keys(localStorage)
         .filter(key => key.startsWith("rackplanner."))
         .forEach(key => localStorage.removeItem(key));
-    cachedCatalog = { ...defaultCatalog };
+    cachedCatalog = createEmptyCatalog();
 }
