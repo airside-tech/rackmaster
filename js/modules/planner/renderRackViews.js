@@ -178,6 +178,7 @@ export function renderSideView(context) {
                 Math.max(14, Math.round((componentDepthCm / visualRackDepthCm) * sideViewWidthPx))
             );
             const el = document.createElement("div");
+            const depthLabelEl = document.createElement("span");
 
             el.className = `rack-side-component rack-side-component--${face}`;
             if (conflictIds.has(component.id)) {
@@ -193,6 +194,15 @@ export function renderSideView(context) {
             el.style.width = `${widthPx}px`;
             el.style.background = getComponentBackground(component);
             el.title = `${component.name} (${componentDepthCm} cm ${face})`;
+
+            depthLabelEl.className = "rack-side-component__depth";
+            depthLabelEl.textContent = widthPx < 56
+                ? `${componentDepthCm}cm`
+                : `${componentDepthCm} cm`;
+            if (widthPx < 36) {
+                depthLabelEl.hidden = true;
+            }
+            el.appendChild(depthLabelEl);
 
             if (face === "front") {
                 el.style.left = "0";
