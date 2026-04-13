@@ -7,6 +7,7 @@ Rackmaster is a browser-based rack planning tool for managing rooms, racks, and 
 - Room and rack catalog management by building, floor, and room.
 - Rack metadata support for RU height, depth, width, tile coordinates, power, tag, and notes.
 - Planner with drag-and-drop placement, front/rear view switching, and side view context.
+- Side-view component depth labels rendered inside each component (hidden on very narrow components for readability).
 - Side compartment support on both sides (front/rear), including custom side labels.
 - Rack profile editing (name, tag, room, owner/description, clearance, notes).
 - Placement checks for fit, overlap, and depth conflicts across opposite faces.
@@ -15,7 +16,10 @@ Rackmaster is a browser-based rack planning tool for managing rooms, racks, and 
   - Rack: JSON, CSV
   - Library: JSON, CSV, XLSX
 - Spreadsheet-friendly bulk editing for catalog and library.
-- PDF drawing export from planner, including front/rear/side views and equipment schedule.
+- PDF drawing export from planner with landscape layout, front/side/rear view panels, and equipment schedule.
+- PDF metadata includes room, description/content, power feed A/B, and rack sizing/usage details.
+- Rack notes are exported after the schedule table (when notes are present).
+- Left menu save/load controls for Library and Rack are compacted into single-row button pairs.
 - Browser localStorage persistence for catalog and planner state.
 
 ## How to Use
@@ -25,7 +29,8 @@ Open app normally (no query parameter).
 It runs in local mode and uses browser storage as before.
 
 ### API mode (prepared for):
-Start backend once Node.js/npm is available, change location to the rackmaster folder.
+Start backend once Node.js/npm is available. Change location to the rackmaster folder first.
+>> cd /rackmaster/server
 >> npm install
 >> npm start
 
@@ -35,7 +40,7 @@ Planner navigation will keep mode=api automatically
 
 
 ### 1) Start the App
-
+ 
 1. Open index.html in a modern browser.
 2. Create at least one room (name, building, floor, optional notes).
 3. Add a rack to a room (name, tag, height, depth, width, position, power, notes).

@@ -1,0 +1,100 @@
+{
+  "rooms": [
+    {
+      "id": "room-mzjou4ih",
+      "name": "Server Room 1",
+      "building": "Main building",
+      "floor": "1",
+      "notes": "some eqpt room",
+      "racks": [
+        {
+          "id": "rack-sof13ayd",
+          "name": "Rack1",
+          "tag": "RackTag1",
+          "heightRU": 42,
+          "tileX": 1,
+          "tileY": 0,
+          "depth": 60,
+          "width": 60,
+          "power": 0,
+          "notes": "racknote1",
+          "plannerState": {
+            "rackHeightRU": 42,
+            "currentView": "front",
+            "rackProfile": {
+              "name": "Rack1",
+              "tag": "RackTag1",
+              "room": "Server Room 1 (Main building / 1)",
+              "owner": "",
+              "powerA": "PWRA",
+              "powerB": "",
+              "rackDepthCm": 60,
+              "rackWidthCm": 60,
+              "minDepthClearanceCm": 0,
+              "notes": "racknote1"
+            },
+            "components": [
+              {
+                "id": "component-93qmtn8o",
+                "name": "Router",
+                "ru": 2,
+                "position": 36,
+                "typeClass": "router",
+                "description": "",
+                "depth": 60,
+                "power": 250,
+                "notes": "",
+                "customColor": null,
+                "sourceLibraryItemId": "library-ydux5doo",
+                "face": "front",
+                "occupancy": {
+                  "front": true,
+                  "rear": false
+                }
+              }
+            ],
+            "sideCompartmentItems": {
+              "front": {
+                "left": [
+                  {
+                    "id": "side-item-wm6p3zcn",
+                    "view": "front",
+                    "side": "left",
+                    "type": "power-cables",
+                    "name": "Power Cables",
+                    "notes": "",
+                    "customColor": "#d97706",
+                    "ru": 5,
+                    "position": 27,
+                    "order": 1
+                  }
+                ],
+                "right": [
+                  {
+                    "id": "side-item-ew9fj1zn",
+                    "view": "front",
+                    "side": "right",
+                    "type": "fiber-cables",
+                    "name": "Fibre Optic Cables",
+                    "notes": "",
+                    "customColor": "#1d8a9b",
+                    "ru": 5,
+                    "position": 25,
+                    "order": 1
+                  }
+                ]
+              },
+              "rear": {
+                "left": [],
+                "right": []
+              }
+            }
+          },
+          "updatedAt": "2026-04-13T13:01:03.259Z",
+          "powerA": "PWRA",
+          "powerB": ""
+        }
+      ]
+    }
+  ]
+}
