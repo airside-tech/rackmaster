@@ -25,6 +25,7 @@ export function renderLibrary(context) {
         state,
         accordionEl,
         handleLibraryDragStart,
+        handleLibraryDragEnd,
         handleSelectLibraryItem,
         getComponentBackground,
         removeLibraryComponent,
@@ -68,6 +69,7 @@ export function renderLibrary(context) {
             itemEl.draggable = true;
             itemEl.dataset.component = JSON.stringify(item);
             itemEl.addEventListener("dragstart", handleLibraryDragStart);
+            itemEl.addEventListener("dragend", handleLibraryDragEnd);
             itemEl.addEventListener("click", () => {
                 handleSelectLibraryItem(category.id, item.id);
             });
@@ -81,7 +83,9 @@ export function renderLibrary(context) {
             nameEl.textContent = item.name;
 
             metaEl.className = "equipment__meta";
-            metaEl.textContent = `${item.ru} RU | ${item.defaultDepth} cm | ${item.defaultPower} W`;
+            metaEl.textContent = item.isSideCompartment
+                ? `${item.ru} RU | Side compartment component`
+                : `${item.ru} RU | ${item.defaultDepth} cm | ${item.defaultPower} W`;
 
             actionsEl.className = "equipment__actions";
             editButton.className = "library-edit";
@@ -149,6 +153,7 @@ export function renderSideCompartmentLibrary(context) {
         itemEl.title = `Drag ${item.name} into the left or right side compartment`;
         itemEl.addEventListener("dragstart", event => {
             setActiveDragSource("side-library");
+            document.body.classList.add("is-side-dragging");
             event.dataTransfer.setData("application/json", JSON.stringify({
                 source: "side-library",
                 sideItem: item
@@ -173,6 +178,7 @@ export function renderSideCompartments(context) {
     const {
         state,
         rackUnitPixelHeight,
+        rackPositionToTop,
         sideCompartmentLeftEl,
         sideCompartmentRightEl,
         getSideCompartmentItems,
@@ -188,11 +194,26 @@ export function renderSideCompartments(context) {
         { element: sideCompartmentLeftEl, side: "left" },
         { element: sideCompartmentRightEl, side: "right" }
     ].forEach(({ element, side }) => {
-        const items = getSideCompartmentItems(state.currentView, side);
+        const items = getSideCompartmentItems(state.currentView, side)
+            .slice()
+            .sort((leftItem, rightItem) => {
+                if ((leftItem.position || 1) !== (rightItem.position || 1)) {
+                    return (rightItem.position || 1) - (leftItem.position || 1);
+                }
+                return (leftItem.order || 0) - (rightItem.order || 0);
+            });
 
         element.innerHTML = "";
         element.style.height = containerHeight;
         element.dataset.side = side;
+
+        for (let position = 1; position <= state.rackHeightRU; position += 1) {
+            const slotEl = document.createElement("div");
+            slotEl.className = "rack-side-compartment__slot";
+            slotEl.style.top = `${rackPositionToTop(position, 1)}px`;
+            slotEl.style.height = `${rackUnitPixelHeight}px`;
+            element.appendChild(slotEl);
+        }
 
         if (items.length === 0) {
             const emptyEl = document.createElement("div");
@@ -209,22 +230,31 @@ export function renderSideCompartments(context) {
             const secondaryNotes = item.type === "custom-label"
                 ? ""
                 : String(item.notes || "").trim();
+            const itemRU = Math.max(1, Math.min(Number(item.ru) || 1, state.rackHeightRU));
+            const maxStartPosition = Math.max(1, state.rackHeightRU - itemRU + 1);
+            const itemPosition = Math.max(1, Math.min(Number(item.position) || 1, maxStartPosition));
 
             itemEl.className = "rack-side-item";
             itemEl.style.background = getSideItemBackground(item);
             itemEl.dataset.sideItemId = item.id;
+            itemEl.dataset.ru = String(itemRU);
+            itemEl.dataset.position = String(itemPosition);
             itemEl.draggable = true;
-            itemEl.title = displayLabel;
+            itemEl.title = `${displayLabel} (${itemRU}U @ U${itemPosition})`;
+            itemEl.style.top = `${rackPositionToTop(itemPosition, itemRU)}px`;
+            itemEl.style.height = `${Math.max((itemRU * rackUnitPixelHeight) - 2, 10)}px`;
             if (item.id === state.selectedSideItemId) {
                 itemEl.classList.add("is-selected");
             }
 
             itemEl.addEventListener("dragstart", event => {
                 setActiveDragSource("side-compartment");
+                document.body.classList.add("is-side-dragging");
                 event.dataTransfer.setData("application/json", JSON.stringify({
                     source: "side-compartment",
                     sideItemId: item.id
                 }));
+                event.dataTransfer.setData("text/plain", item.id || "side-item");
                 event.dataTransfer.effectAllowed = "move";
             });
             itemEl.addEventListener("dragend", clearActiveDragSource);
@@ -232,6 +262,11 @@ export function renderSideCompartments(context) {
             labelEl.className = "rack-side-item__label";
             labelEl.textContent = displayLabel;
             itemEl.appendChild(labelEl);
+
+            const ruBadgeEl = document.createElement("div");
+            ruBadgeEl.className = "rack-side-item__ru";
+            ruBadgeEl.textContent = `${itemRU}U`;
+            itemEl.appendChild(ruBadgeEl);
 
             if (secondaryNotes) {
                 const notesEl = document.createElement("div");

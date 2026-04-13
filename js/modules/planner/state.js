@@ -57,6 +57,45 @@ export const defaultLibrarySeed = [
             { name: "KVM Receiver", ru: 1, typeClass: "kvm", defaultDepth: 28, defaultPower: 25 },
             { name: "KVM Manager", ru: 1, typeClass: "kvm", defaultDepth: 35, defaultPower: 45 }
         ]
+    },
+    {
+        name: "Side Compartment Components",
+        isSideCompartment: true,
+        items: [
+            {
+                name: "Fibre Optic Cables",
+                ru: 5,
+                typeClass: "side-compartment-component",
+                defaultDepth: 0,
+                defaultPower: 0,
+                description: "Cable tray / slack storage",
+                customColor: "#1d8a9b",
+                isSideCompartment: true,
+                sideItemType: "fiber-cables"
+            },
+            {
+                name: "Power Cables",
+                ru: 5,
+                typeClass: "side-compartment-component",
+                defaultDepth: 0,
+                defaultPower: 0,
+                description: "Power routing and excess length",
+                customColor: "#d97706",
+                isSideCompartment: true,
+                sideItemType: "power-cables"
+            },
+            {
+                name: "Patch Cables",
+                ru: 5,
+                typeClass: "side-compartment-component",
+                defaultDepth: 0,
+                defaultPower: 0,
+                description: "Patch bundle / service loops",
+                customColor: "#2c9874",
+                isSideCompartment: true,
+                sideItemType: "patch-cables"
+            }
+        ]
     }
 ];
 
@@ -64,6 +103,7 @@ export function createLibraryState(seedCategories) {
     return seedCategories.map(category => ({
         id: createId("category"),
         name: category.name,
+        isSideCompartment: Boolean(category.isSideCompartment),
         expanded: false,
         items: category.items.map(item => ({
             id: item.id || createId("library"),
@@ -73,7 +113,11 @@ export function createLibraryState(seedCategories) {
             description: item.description || "",
             defaultDepth: item.defaultDepth || 0,
             defaultPower: item.defaultPower || 0,
-            customColor: item.customColor || null
+            customColor: item.customColor || null,
+            isSideCompartment: Boolean(item.isSideCompartment || category.isSideCompartment),
+            sideItemType: Boolean(item.isSideCompartment || category.isSideCompartment)
+                ? (String(item.sideItemType || "custom-label").trim() || "custom-label")
+                : null
         }))
     }));
 }

@@ -45,8 +45,20 @@ export function createPdfExportHandler(context) {
         const savedSelectedSideItemId = state.selectedSideItemId;
         const sideViewEl = document.getElementById("rackSideView");
         const sidePanelEl = sideViewEl ? sideViewEl.closest(".rack-side-panel") || sideViewEl : null;
+        const originalLabelTransformById = new Map();
+
+        function setSideCompartmentLabelsForPdfExport() {
+            const labels = Array.from(document.querySelectorAll(".rack-side-item__label"));
+            labels.forEach(labelEl => {
+                if (!originalLabelTransformById.has(labelEl)) {
+                    originalLabelTransformById.set(labelEl, labelEl.style.transform);
+                }
+                labelEl.style.transform = "none";
+            });
+        }
 
         try {
+            document.body.classList.add("is-pdf-exporting");
             state.selectedComponentId = null;
             state.selectedSideItemId = null;
 
@@ -56,16 +68,17 @@ export function createPdfExportHandler(context) {
             renderRack();
             renderSideCompartments();
             renderSideView();
+            setSideCompartmentLabelsForPdfExport();
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
             const frontCanvas = await html2canvas(rackFrameEl, {
-                scale: 2,
+                scale: 1,
                 backgroundColor: "#1a1d1b",
                 useCORS: true,
                 logging: false
             });
             const sideCanvas = await html2canvas(sidePanelEl, {
-                scale: 2,
+                scale: 1,
                 backgroundColor: null,
                 useCORS: true,
                 logging: false
@@ -76,10 +89,12 @@ export function createPdfExportHandler(context) {
             document.body.classList.add("view-rear");
             renderRack();
             renderSideCompartments();
+            renderSideView();
+            setSideCompartmentLabelsForPdfExport();
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
             const rearCanvas = await html2canvas(rackFrameEl, {
-                scale: 2,
+                scale: 1,
                 backgroundColor: "#1a1d1b",
                 useCORS: true,
                 logging: false
@@ -96,8 +111,8 @@ export function createPdfExportHandler(context) {
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-            const pageW = 297;
-            const pageH = 210;
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
             const margin = 12;
 
             const footerY = pageH - 5;
@@ -107,110 +122,85 @@ export function createPdfExportHandler(context) {
             doc.text(`${state.rackProfile.tag} · Rev: ${revDate} · Rackmaster`, margin, footerY);
             doc.setTextColor(0, 0, 0);
 
-            const metaW = 72;
-            let my = margin + 5;
-
+            let topY = margin + 4;
             doc.setFont("helvetica", "bold");
             doc.setFontSize(12);
-            doc.text(state.rackProfile.name || "Rack", margin, my);
-            my += 5;
+            doc.text(state.rackProfile.name || "Rack", margin, topY);
             doc.setFont("helvetica", "normal");
             doc.setFontSize(9);
             doc.setTextColor(80, 80, 80);
-            doc.text(`[${state.rackProfile.tag || "—"}]`, margin, my);
+            doc.text(`[${state.rackProfile.tag || "—"}]`, margin + 85, topY);
             doc.setTextColor(0, 0, 0);
-            my += 6;
 
+            topY += 5;
+            doc.setFont("helvetica", "normal");
+            doc.setFontSize(8.5);
+            doc.text(
+                `Room: ${state.rackProfile.room || "—"}   Description / Content: ${state.rackProfile.owner || "—"}`,
+                margin,
+                topY
+            );
+
+            topY += 4.5;
+            doc.text(
+                `Height: ${state.rackHeightRU} RU   Depth: ${rackDepth > 0 ? `${rackDepth} cm` : "—"}   Min. Clear.: ${clearance > 0 ? `${clearance} cm` : "—"}`,
+                margin,
+                topY
+            );
+
+            topY += 4.5;
+            doc.text(
+                `Powered from A: ${state.rackProfile.powerA || "—"}   Powered from B: ${state.rackProfile.powerB || "—"}`,
+                margin,
+                topY
+            );
+
+            topY += 4.5;
+            const conflictText = conflictSet.size > 0
+                ? `${conflictSet.size} component(s) in conflict`
+                : "No conflicts";
+            doc.text(
+                `Used: ${usedRU} of ${state.rackHeightRU} RU   Free: ${state.rackHeightRU - usedRU} RU   Total Power: ${totalPower} W   Conflicts: ${conflictText}`,
+                margin,
+                topY
+            );
+
+            topY += 3;
             doc.setDrawColor(180, 180, 180);
             doc.setLineWidth(0.3);
-            doc.line(margin, my, margin + metaW, my);
-            my += 5;
+            doc.line(margin, topY, pageW - margin, topY);
 
-            const metaRows = [
-                ["Height:", `${state.rackHeightRU} RU`],
-                ["Depth:", rackDepth > 0 ? `${rackDepth} cm` : "—"],
-                ["Min. Clear.:", clearance > 0 ? `${clearance} cm` : "—"],
-                ["Used:", `${usedRU} of ${state.rackHeightRU} RU`],
-                ["Free:", `${state.rackHeightRU - usedRU} RU`],
-                ["Total Power:", `${totalPower} W`]
-            ];
-            if (state.rackProfile.room) {
-                metaRows.push(["Room / Site:", state.rackProfile.room]);
-            }
-            if (state.rackProfile.owner) {
-                metaRows.push(["Description:", state.rackProfile.owner]);
-            }
-            if (state.rackProfile.notes) {
-                const notesShort = state.rackProfile.notes.length > 38
-                    ? state.rackProfile.notes.slice(0, 35) + "…"
-                    : state.rackProfile.notes;
-                metaRows.push(["Notes:", notesShort]);
-            }
+            const nativeFrontH = frontCanvas.height;
+            const nativeFrontW = frontCanvas.width;
+            const nativeSideW = sideCanvas.width;
+            const nativeSideH = sideCanvas.height;
+            const nativeRearW = rearCanvas.width;
+            const nativeRearH = rearCanvas.height;
 
-            doc.setFontSize(8.5);
-            metaRows.forEach(([label, value]) => {
-                doc.setFont("helvetica", "bold");
-                doc.text(label, margin, my);
-                doc.setFont("helvetica", "normal");
-                doc.text(String(value), margin + 30, my);
-                my += 5;
-            });
-
-            my += 2;
-            doc.setFont("helvetica", "bold");
-            doc.text("Conflicts:", margin, my);
-            my += 5;
-            doc.setFont("helvetica", "normal");
-            if (conflictSet.size > 0) {
-                doc.setTextColor(180, 30, 30);
-                doc.text(`${conflictSet.size} component(s) in conflict`, margin, my);
-            } else {
-                doc.setTextColor(20, 140, 80);
-                doc.text("None detected", margin, my);
-            }
-            doc.setTextColor(0, 0, 0);
-            my += 8;
-
-            doc.setFont("helvetica", "italic");
-            doc.setFontSize(8);
-            doc.setTextColor(100, 100, 100);
-            doc.text(`Revision: ${revDate}`, margin, my);
-            doc.setTextColor(0, 0, 0);
-            doc.setFont("helvetica", "normal");
-
-            doc.setDrawColor(200, 200, 200);
-            doc.setLineWidth(0.4);
-            doc.line(margin + metaW + 4, margin, margin + metaW + 4, pageH - margin);
-
-            const nativeFrontH = frontCanvas.height / 2;
-            const nativeFrontW = frontCanvas.width / 2;
-            const nativeSideW = sideCanvas.width / 2;
-            const nativeSideH = sideCanvas.height / 2;
-            const nativeRearW = rearCanvas.width / 2;
-            const nativeRearH = rearCanvas.height / 2;
-
-            const viewsX = margin + metaW + 10;
-            const viewsAvailW = pageW - viewsX - margin;
-            const viewsAvailH = pageH - margin - 18;
-            const viewsY = margin + 10;
+            const viewsX = margin;
+            const viewsY = topY + 6;
+            const viewsAvailW = pageW - margin * 2;
+            const viewsAvailH = pageH - viewsY - 12;
             const viewGap = 6;
 
-            const viewH = Math.min(viewsAvailH, 155);
-            const frontWRaw = viewH * nativeFrontW / nativeFrontH;
-            const sideWRaw = viewH * nativeSideW / nativeSideH;
-            const rearWRaw = viewH * nativeRearW / nativeRearH;
-            const totalRaw = frontWRaw + sideWRaw + rearWRaw + viewGap * 2;
-            const shrink = totalRaw > viewsAvailW ? viewsAvailW / totalRaw : 1;
+            const columnW = (viewsAvailW - viewGap * 2) / 3;
+            const frontScale = Math.min(columnW / nativeFrontW, viewsAvailH / nativeFrontH);
+            const sideScale = Math.min(columnW / nativeSideW, viewsAvailH / nativeSideH);
+            const rearScale = Math.min(columnW / nativeRearW, viewsAvailH / nativeRearH);
 
-            const frontW = frontWRaw * shrink;
-            const sideW = sideWRaw * shrink;
-            const rearW = rearWRaw * shrink;
-            const actualVH = viewH * shrink;
-            const gap = viewGap * shrink;
+            const frontW = nativeFrontW * frontScale;
+            const frontH = nativeFrontH * frontScale;
+            const sideW = nativeSideW * sideScale;
+            const sideH = nativeSideH * sideScale;
+            const rearW = nativeRearW * rearScale;
+            const rearH = nativeRearH * rearScale;
 
-            const frontX = viewsX;
-            const sideX = frontX + frontW + gap;
-            const rearX = sideX + sideW + gap;
+            const frontX = viewsX + (columnW - frontW) / 2;
+            const sideX = viewsX + columnW + viewGap + (columnW - sideW) / 2;
+            const rearX = viewsX + (columnW + viewGap) * 2 + (columnW - rearW) / 2;
+            const frontY = viewsY + (viewsAvailH - frontH) / 2;
+            const sideY = viewsY + (viewsAvailH - sideH) / 2;
+            const rearY = viewsY + (viewsAvailH - rearH) / 2;
 
             doc.setFont("helvetica", "bold");
             doc.setFontSize(7);
@@ -222,15 +212,15 @@ export function createPdfExportHandler(context) {
             doc.text("REAR VIEW", rearX + rearW / 2, labelY, { align: "center" });
             doc.setTextColor(0, 0, 0);
 
-            doc.addImage(frontCanvas.toDataURL("image/png"), "PNG", frontX, viewsY, frontW, actualVH);
-            doc.addImage(sideCanvas.toDataURL("image/png"), "PNG", sideX, viewsY, sideW, actualVH);
-            doc.addImage(rearCanvas.toDataURL("image/png"), "PNG", rearX, viewsY, rearW, actualVH);
+            doc.addImage(frontCanvas.toDataURL("image/jpeg", 0.82), "JPEG", frontX, frontY, frontW, frontH);
+            doc.addImage(sideCanvas.toDataURL("image/jpeg", 0.82), "JPEG", sideX, sideY, sideW, sideH);
+            doc.addImage(rearCanvas.toDataURL("image/jpeg", 0.82), "JPEG", rearX, rearY, rearW, rearH);
 
             doc.setDrawColor(100, 100, 100);
             doc.setLineWidth(0.2);
-            doc.rect(frontX, viewsY, frontW, actualVH);
-            doc.rect(sideX, viewsY, sideW, actualVH);
-            doc.rect(rearX, viewsY, rearW, actualVH);
+            doc.rect(frontX, frontY, frontW, frontH);
+            doc.rect(sideX, sideY, sideW, sideH);
+            doc.rect(rearX, rearY, rearW, rearH);
 
             doc.addPage();
 
@@ -248,6 +238,8 @@ export function createPdfExportHandler(context) {
                 margin,
                 y2
             );
+            y2 += 4.5;
+            doc.text(`Room: ${state.rackProfile.room || "—"}`, margin, y2);
             doc.setTextColor(0, 0, 0);
             y2 += 6;
 
@@ -353,6 +345,34 @@ export function createPdfExportHandler(context) {
                 margin + 1.5,
                 y2 + 4
             );
+            y2 += 14;
+
+            const rackNotes = String(state.rackProfile.notes || "").trim();
+            if (rackNotes) {
+                const notesTitle = "Rack Notes";
+                const notesMaxWidth = pageW - (margin * 2);
+                const notesLines = doc.splitTextToSize(rackNotes, notesMaxWidth);
+                const notesBlockHeight = 5 + (notesLines.length * 3.8);
+                const notesBottomLimit = pageH - margin - 8;
+
+                if (y2 + notesBlockHeight > notesBottomLimit) {
+                    doc.setFont("helvetica", "normal");
+                    doc.setFontSize(7);
+                    doc.setTextColor(130, 130, 130);
+                    doc.text(`${state.rackProfile.tag} · Rev: ${revDate} · Rackmaster`, margin, pageH - 5);
+                    doc.setTextColor(0, 0, 0);
+                    doc.addPage();
+                    y2 = margin + 5;
+                }
+
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(9);
+                doc.text(notesTitle, margin, y2);
+                y2 += 4.5;
+                doc.setFont("helvetica", "normal");
+                doc.setFontSize(8.5);
+                doc.text(notesLines, margin, y2);
+            }
 
             doc.setFont("helvetica", "normal");
             doc.setFontSize(7);
@@ -369,6 +389,10 @@ export function createPdfExportHandler(context) {
             restorePlannerUi(savedView, savedSelectedId, savedSelectedSideItemId);
             setNotice(`PDF export failed: ${err.message}`);
         } finally {
+            document.body.classList.remove("is-pdf-exporting");
+            originalLabelTransformById.forEach((transformValue, labelEl) => {
+                labelEl.style.transform = transformValue || "";
+            });
             if (exportButton) {
                 exportButton.disabled = false;
             }

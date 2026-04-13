@@ -7,14 +7,12 @@ import {
 import {
     renderLibrary as renderLibraryView,
     renderLibraryCategoryOptions as renderLibraryCategoryOptionsView,
-    renderSideCompartmentLibrary as renderSideCompartmentLibraryView,
     renderSideCompartments as renderSideCompartmentsView
 } from "./renderLibraryAndSide.js";
 import {
     renderPlannerNotice as renderPlannerNoticeView,
     renderRackProfile as renderRackProfileView,
     renderSelectedEditorPanel as renderSelectedEditorPanelView,
-    renderSelectedSideItemPanel as renderSelectedSideItemPanelView,
     renderSideViewFaceLabels as renderSideViewFaceLabelsView,
     renderStatus as renderStatusView
 } from "./renderPanels.js";
@@ -38,6 +36,8 @@ export function createPlannerUi(context) {
         rackWidthInput,
         rackRoomInput,
         rackOwnerInput,
+        rackPowerAInput,
+        rackPowerBInput,
         rackClearanceInput,
         rackNotesInput,
         plannerNoticeEl,
@@ -48,7 +48,6 @@ export function createPlannerUi(context) {
         toggleViewButton,
         rackSideLabelFrontEl,
         rackSideLabelRearEl,
-        sideCompartmentLibraryEl,
         sideCompartmentLeftEl,
         sideCompartmentRightEl,
         accordionEl,
@@ -66,11 +65,6 @@ export function createPlannerUi(context) {
         saveSelectedEditorButton,
         deleteSelectedEditorButton,
         clearSelectedEditorButton,
-        selectedSideItemFields,
-        selectedSideItemInfoEl,
-        saveSelectedSideItemButton,
-        deleteSelectedSideItemButton,
-        clearSideItemSelectionButton,
         libraryFormCollapseEl,
         libraryFormToggleButton,
         libraryFormToggleLabelEl,
@@ -84,7 +78,6 @@ export function createPlannerUi(context) {
         getDefaultColor,
         setDefaultColor,
         adjustBrightness,
-        sideCompartmentLibrarySeed,
         getSideCompartmentItems,
         getSideItemBackground,
         getSideItemDisplayLabel,
@@ -190,10 +183,10 @@ export function createPlannerUi(context) {
                     : 0;
                 const frontUsagePercentSafe = Math.max(0, Math.min(frontUsagePercent, 100));
                 const rearDepthUsagePercentSafe = Math.max(0, Math.min(rearDepthUsagePercent, 100));
-                const usageSummaryPercent = Math.max(frontUsagePercentSafe, rearDepthUsagePercentSafe);
-                const usageScaleClass = usageSummaryPercent > 80
+                const usageScalePercent = Math.max(frontUsagePercentSafe, rearDepthUsagePercentSafe);
+                const usageScaleClass = usageScalePercent > 80
                     ? "is-red"
-                    : usageSummaryPercent > 50
+                    : usageScalePercent > 50
                         ? "is-orange"
                         : "is-green";
 
@@ -211,20 +204,11 @@ export function createPlannerUi(context) {
         });
     }
 
-    function renderSideCompartmentLibrary() {
-        renderSideCompartmentLibraryView({
-            sideCompartmentLibraryEl,
-            sideCompartmentLibrarySeed,
-            getSideItemBackground,
-            setActiveDragSource,
-            clearActiveDragSource
-        });
-    }
-
     function renderSideCompartments() {
         renderSideCompartmentsView({
             state,
             rackUnitPixelHeight,
+            rackPositionToTop,
             sideCompartmentLeftEl,
             sideCompartmentRightEl,
             getSideCompartmentItems,
@@ -273,6 +257,7 @@ export function createPlannerUi(context) {
             state,
             accordionEl,
             handleLibraryDragStart: getPlannerDragDrop().handleLibraryDragStart,
+            handleLibraryDragEnd: getPlannerDragDrop().handleLibraryDragEnd,
             handleSelectLibraryItem: getPlannerActions().handleSelectLibraryItem,
             getComponentBackground,
             removeLibraryComponent: getPlannerActions().removeLibraryComponent,
@@ -316,6 +301,8 @@ export function createPlannerUi(context) {
         renderSelectedEditorPanelView({
             state,
             getSelectedRackComponent,
+            getSelectedSideCompartmentItem,
+            getDefaultSideItemColor,
             getComponentDisplayColor,
             getComponentRangeLabel,
             updateSelectedEditorPaletteSelection,
@@ -329,29 +316,25 @@ export function createPlannerUi(context) {
         });
     }
 
-    function renderSelectedSideItemPanel() {
-        renderSelectedSideItemPanelView({
-            getDefaultSideItemColor,
-            getSelectedSideCompartmentItem,
-            selectedSideItemFields,
-            selectedSideItemInfoEl,
-            saveSelectedSideItemButton,
-            deleteSelectedSideItemButton,
-            clearSideItemSelectionButton
-        });
-    }
-
     function renderAll() {
-        context.rebuildRackSlots(state);
-        renderRack();
-        renderSideCompartments();
-        renderSideView();
-        renderLibrary();
-        renderSideCompartmentLibrary();
-        renderRackProfile();
-        renderSelectedEditorPanel();
-        renderSelectedSideItemPanel();
-        renderStatus();
+        const renderStages = [
+            ["rebuildRackSlots", () => context.rebuildRackSlots(state)],
+            ["renderRack", () => renderRack()],
+            ["renderSideCompartments", () => renderSideCompartments()],
+            ["renderSideView", () => renderSideView()],
+            ["renderLibrary", () => renderLibrary()],
+            ["renderRackProfile", () => renderRackProfile()],
+            ["renderSelectedEditorPanel", () => renderSelectedEditorPanel()],
+            ["renderStatus", () => renderStatus()]
+        ];
+
+        renderStages.forEach(([stageName, stageFn]) => {
+            try {
+                stageFn();
+            } catch (error) {
+                console.error(`RackMaster planner stage failed: ${stageName}`, error);
+            }
+        });
     }
 
     function bindEvents() {
@@ -365,9 +348,6 @@ export function createPlannerUi(context) {
             saveSelectedEditorButton,
             deleteSelectedEditorButton,
             clearSelectedEditorButton,
-            saveSelectedSideItemButton,
-            deleteSelectedSideItemButton,
-            clearSideItemSelectionButton,
             addCustomSideLabelLeftButton,
             addCustomSideLabelRightButton,
             toggleViewButton,
@@ -378,6 +358,7 @@ export function createPlannerUi(context) {
             rackIdentityBarEl,
             rackInfoEl,
             rackEl,
+            rackFrameEl,
             sideCompartmentLeftEl,
             sideCompartmentRightEl,
             sideViewEl,
@@ -403,8 +384,10 @@ export function createPlannerUi(context) {
             selectedEditorColorPresetsEl,
             selectedEditorFields,
             getSelectedRackComponent,
+            getSelectedSideCompartmentItem,
             getSelectedLibraryItem,
             renderRack,
+            renderSideCompartments,
             renderLibrary,
             renderSelectedEditorPanel,
             syncActiveRackToCatalog,
@@ -433,9 +416,7 @@ export function createPlannerUi(context) {
         renderRack,
         renderRackProfile,
         renderSelectedEditorPanel,
-        renderSelectedSideItemPanel,
         renderSideCompartments,
-        renderSideCompartmentLibrary,
         renderSideView,
         renderSideViewFaceLabels,
         renderStatus,

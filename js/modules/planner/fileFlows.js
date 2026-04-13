@@ -159,6 +159,7 @@ export function createPlannerFileFlows(context) {
             savedAt: new Date().toISOString(),
             categories: state.libraryCategories.map(category => ({
                 name: category.name,
+                isSideCompartment: Boolean(category.isSideCompartment),
                 items: category.items.map(item => ({
                     id: item.id,
                     name: item.name,
@@ -167,7 +168,9 @@ export function createPlannerFileFlows(context) {
                     description: item.description || "",
                     customColor: item.customColor || null,
                     defaultDepth: item.defaultDepth,
-                    defaultPower: item.defaultPower
+                    defaultPower: item.defaultPower,
+                    isSideCompartment: Boolean(item.isSideCompartment),
+                    sideItemType: item.sideItemType || "custom-label"
                 }))
             }))
         };
@@ -248,7 +251,7 @@ export function createPlannerFileFlows(context) {
             notes: String(payload.rackProfile?.notes || "").trim()
         };
         state.rackComponents = nextComponents;
-        state.sideCompartmentItems = normalizeSideCompartmentState(payload.sideCompartmentItems);
+        state.sideCompartmentItems = normalizeSideCompartmentState(payload.sideCompartmentItems, nextRackHeight);
         state.selectedComponentId = null;
         state.selectedLibraryCategoryId = null;
         state.selectedLibraryItemId = null;
