@@ -13,7 +13,8 @@ Use Azure Files as primary live datastore for catalog, locks, and snapshots.
 Keep your existing network share for initial migration in and scheduled backup out.
 Enforce rack-level lock workflow (one editor per rack at a time).
 Add before/after snapshot history per save.
-Implementation Steps
+
+# Implementation Steps
 
 ## Phase 1: Azure baseline
 Containerize frontend + backend, deploy to Azure Container Apps with HTTPS and managed identity.
