@@ -1,6 +1,10 @@
 # Rackmaster
 
-Rackmaster is a browser-based rack planning tool for managing rooms, racks, and equipment layouts. It runs fully client-side, stores data locally, and supports practical import/export workflows for JSON, CSV, and XLSX.
+Rackmaster is a rack planning tool for managing rooms, racks, and equipment layouts. It currently supports two runtime modes:
+- Local mode for fast Live Server development and demos.
+- API mode for shared multi-user behavior and Azure deployment work.
+
+The project is currently following an Azure-first deployment roadmap with sequential rack-level editing locks. See `Deployment_plan.md`.
 
 ## New and Current Features
 
@@ -21,23 +25,56 @@ Rackmaster is a browser-based rack planning tool for managing rooms, racks, and 
 - Rack notes are exported after the schedule table (when notes are present).
 - Left menu save/load controls for Library and Rack are compacted into single-row button pairs.
 - Browser localStorage persistence for catalog and planner state.
+- API mode support for shared catalog reads/writes and rack lock lifecycle.
+
+## Runtime Modes
+
+### Local mode (default)
+
+Open `index.html` from Live Server or a local static host. No query parameter is required.
+
+Behavior:
+- Uses browser storage.
+- Optimized for quick demos and development.
+- This is the required stable behavior on `main`.
+
+### API mode
+
+Start the backend and open the app with `?mode=api`.
+
+```bash
+cd server
+npm install
+npm start
+```
+
+Then open:
+
+```text
+http://localhost:3000/index.html?mode=api
+```
+
+Behavior:
+- Uses API-backed catalog flow.
+- Enables rack-level lock flow for sequential editing.
+- Used for `azure-server-dev` integration and Azure rollout validation.
+
+## Branch Workflow
+
+- `main`: demo-safe branch. Must always run in local mode with no backend required.
+- `azure-server-dev`: integration branch for Azure hosting, shared persistence, lock hardening, identity, and snapshots.
+
+Rules:
+1. Keep `main` stable for Live Server demonstrations.
+2. Build Azure/server changes on `azure-server-dev`.
+3. Merge `main` into `azure-server-dev` frequently to reduce drift.
+4. Merge back to `main` only in stable slices that do not break local mode.
+
+## Sprint 1 Checklist
+
+Use `azure-server-dev_sprint1_checklist.md` for concrete first-sprint execution tasks and acceptance criteria.
 
 ## How to Use
-
-### Running app locally (VSCode) - Live Server mode (unchanged workflow):
-Open app normally (no query parameter).
-It runs in local mode and uses browser storage as before.
-
-### API mode (prepared for):
-Start backend once Node.js/npm is available. Change location to the rackmaster folder first.
->> cd /rackmaster/server
->> npm install
->> npm start
-
-Open:
->> http://localhost:3000/index.html?mode=api
-Planner navigation will keep mode=api automatically
-
 
 ### 1) Start the App
  
@@ -79,7 +116,7 @@ Top-level files:
 
 Core modules:
 
-- js/modules/storage.js: Read/write catalog state in localStorage.
+- js/modules/storage.js: Runtime storage adapter (local mode and API mode).
 - js/modules/fileIO.js: File picker and save helpers.
 - js/modules/catalogFormat.js: JSON/CSV conversion for catalog, rack, and library payloads.
 - js/modules/excelInterop.js: XLSX conversion for catalog and library payloads.
@@ -103,9 +140,16 @@ Planner subsystem highlights:
 
 ## Technical Notes
 
-- No backend required.
-- Works in modern browsers with localStorage.
+- Local mode requires no backend.
+- API mode requires `server/index.js` running.
+- Works in modern browsers.
 - Uses browser file APIs and falls back to input-based upload when needed.
+
+## Roadmap Artifacts
+
+- `Deployment_plan.md`: Azure-first deployment strategy, branch workflow, and phased rollout.
+- `azure-server-dev_sprint1_checklist.md`: concrete first sprint tasks for the Azure integration branch.
+- `TODO.md`: general backlog and non-sprint items.
 
 ## License
 
