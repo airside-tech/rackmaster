@@ -59,6 +59,11 @@ async function fetchCatalogFromApi() {
 }
 
 function writeCatalogToApi(catalog) {
+    /* 
+    API write function for the catalog
+    If called without waiting (async), the errors will not propagate (fire and forget)
+    When using liveServer this is used directly.
+    */
     void fetch("/api/catalog", {
         method: "PUT",
         headers: {
