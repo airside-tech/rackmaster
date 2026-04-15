@@ -51,6 +51,24 @@ export function getComponentDisplayColor(component) {
     }
 
     const typeClass = normalizeTypeClass(component?.typeClass || "default-component");
+
+    // Keep families consistent when multiple model-specific type classes exist.
+    if (typeClass.startsWith("cisco-catalyst-9200l")) {
+        return "#0f6cbf";
+    }
+    if (typeClass.startsWith("cisco-catalyst-9300")) {
+        return "#0057a8";
+    }
+    if (typeClass.startsWith("systimax-")) {
+        return "#2c7da0";
+    }
+    if (typeClass.startsWith("fibre-optic-patch-panel")) {
+        return "#1d8a9b";
+    }
+    if (typeClass.startsWith("blanking-panel")) {
+        return "#7d8994";
+    }
+
     const typeClassColorMap = {
         router: "#1d8a9b",
         switch: "#4d7ea8",

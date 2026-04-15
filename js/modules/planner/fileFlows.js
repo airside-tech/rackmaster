@@ -27,6 +27,7 @@ export function createPlannerFileFlows(context) {
         loadLibraryInput,
         setNotice,
         renderAll,
+        persistLibraryCategories = () => {},
         syncActiveRackToCatalog,
         cloneRackComponent
     } = context;
@@ -134,6 +135,7 @@ export function createPlannerFileFlows(context) {
             : { payload, preservedIdCount: 0, generatedIdCount: 0 };
 
         state.libraryCategories = createLibraryState(normalizedPayload.payload.categories);
+        persistLibraryCategories(state.libraryCategories);
         state.selectedLibraryCategoryId = null;
         state.selectedLibraryItemId = null;
         renderAll();

@@ -36,6 +36,7 @@ export function createPlannerActions(context) {
         renderLibrary,
         renderSelectedEditorPanel,
         syncActiveRackToCatalog,
+        persistLibraryCategories = () => {},
         setNotice,
         canMutate = () => true
     } = context;
@@ -450,6 +451,7 @@ export function createPlannerActions(context) {
         });
 
         renderAll();
+        persistLibraryCategories(state.libraryCategories);
         syncActiveRackToCatalog();
         if (linkedComponents.length === 0) {
             setNotice(`Updated ${selectedLibraryItem.name} in the library.`);
@@ -656,6 +658,7 @@ export function createPlannerActions(context) {
             state.selectedLibraryItemId = null;
         }
 
+        persistLibraryCategories(state.libraryCategories);
         renderLibrary();
         renderSelectedEditorPanel();
         setNotice("Component removed from library.");
@@ -724,6 +727,7 @@ export function createPlannerActions(context) {
             sideItemType: "custom-label"
         });
         category.expanded = true;
+        persistLibraryCategories(state.libraryCategories);
         renderLibrary();
         setNotice(`${componentName} added to ${category.name}.`);
 

@@ -16,6 +16,7 @@ import {
     setDefaultColor
 } from "./colors.js";
 import {
+    createLibraryState,
     createInitialPlannerState,
     defaultRackHeightRU,
     maximumRackHeightRU,
@@ -23,6 +24,7 @@ import {
     warningRackHeightRU,
     rackUnitPixelHeight
 } from "./state.js";
+import { persistLibraryCategories, readPersistedLibraryPayload } from "./libraryStorage.js";
 import {
     createEmptySideCompartmentState,
     getDefaultSideItemColor,
@@ -183,6 +185,10 @@ export async function initPlannerPage() {
 
     const activeRackId = new URLSearchParams(window.location.search).get("rackId");
     const state = createInitialPlannerState();
+    const persistedLibraryPayload = readPersistedLibraryPayload();
+    if (persistedLibraryPayload && Array.isArray(persistedLibraryPayload.categories)) {
+        state.libraryCategories = createLibraryState(persistedLibraryPayload.categories);
+    }
     const lockState = {
         enabled: isLockingEnabled() && Boolean(activeRackId),
         canEdit: !(isLockingEnabled() && Boolean(activeRackId)),
@@ -477,6 +483,7 @@ export async function initPlannerPage() {
         renderLibrary,
         renderSelectedEditorPanel,
         syncActiveRackToCatalog,
+        persistLibraryCategories,
         setNotice,
         renderStatus,
         canMutate
@@ -554,6 +561,7 @@ export async function initPlannerPage() {
         loadLibraryInput,
         setNotice,
         renderAll,
+        persistLibraryCategories,
         syncActiveRackToCatalog: () => syncActiveRackToCatalog(),
         cloneRackComponent
     });
