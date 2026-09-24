@@ -86,7 +86,6 @@ export function renderStatus(context) {
     const {
         freeUnitsRU,
         frontUsagePercentSafe,
-        rearDepthUsagePercentSafe,
         totalPowerW,
         usedUnitsRU
     } = getRackMetrics();
@@ -100,7 +99,6 @@ export function renderStatus(context) {
     }
 
     const frontUsageScaleClass = getUsageScaleClass(frontUsagePercentSafe);
-    const rearUsageScaleClass = getUsageScaleClass(rearDepthUsagePercentSafe);
     const activeViewText = state.currentView === "front" ? "Front" : "Rear";
     const rackName = state.rackProfile.name || "Main Rack";
     const rackTag = state.rackProfile.tag || "RACK-01";
@@ -130,10 +128,6 @@ export function renderStatus(context) {
                     <div class="rack-usage-title">Front Side Usage (RU): ${frontUsagePercentSafe}%</div>
                     <div class="rack-usage-bar">
                         <div class="rack-usage-fill ${frontUsageScaleClass}" style="width: ${frontUsagePercentSafe}%;"></div>
-                    </div>
-                    <div class="rack-usage-title">Rear Side Usage (Depth): ${rearDepthUsagePercentSafe}%</div>
-                    <div class="rack-usage-bar">
-                        <div class="rack-usage-fill ${rearUsageScaleClass}" style="width: ${rearDepthUsagePercentSafe}%;"></div>
                     </div>
                 </div>
             </div>

@@ -244,9 +244,7 @@ export async function initPlannerPage() {
             document.getElementById("libraryComponentClass"),
             document.getElementById("libraryComponentDepth"),
             document.getElementById("libraryComponentPower"),
-            document.getElementById("customColorInput"),
-            document.getElementById("increaseHeight"),
-            document.getElementById("decreaseHeight")
+            document.getElementById("customColorInput")
         ].filter(Boolean);
 
         lockableElements.forEach(element => {

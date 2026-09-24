@@ -53,8 +53,6 @@ export function bindPlannerEvents(context) {
     clearSelectedEditorButton.addEventListener("click", plannerActions.clearSelectedEditor);
     addCustomSideLabelLeftButton.addEventListener("click", () => plannerActions.handleAddCustomSideLabel("left"));
     addCustomSideLabelRightButton.addEventListener("click", () => plannerActions.handleAddCustomSideLabel("right"));
-    document.getElementById("increaseHeight").addEventListener("click", plannerActions.handleIncreaseRackHeight);
-    document.getElementById("decreaseHeight").addEventListener("click", plannerActions.handleDecreaseRackHeight);
     toggleViewButton.addEventListener("click", plannerActions.handleToggleView);
     document.getElementById("saveRackButton").addEventListener("click", plannerFileFlows.saveRackToFile);
     document.getElementById("saveLibraryButton").addEventListener("click", plannerFileFlows.saveLibraryToFile);
