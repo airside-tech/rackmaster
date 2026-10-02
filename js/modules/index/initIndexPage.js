@@ -227,6 +227,89 @@ export function initIndexPage() {
     const loadedRackCount = catalog.rooms.reduce((sum, room) => sum + ((room.racks || []).length), 0);
     console.info(`RackMaster catalog loaded: ${loadedRoomCount} room(s), ${loadedRackCount} rack(s).`);
 
+    const defaultRackSortPreference = {
+        field: "tag",
+        direction: "asc"
+    };
+    const roomRackSortPreferences = new Map();
+
+    function normalizeSortField(value) {
+        return value === "name" ? "name" : "tag";
+    }
+
+    function normalizeSortDirection(value) {
+        return value === "desc" ? "desc" : "asc";
+    }
+
+    function getRackSortPreference(roomId) {
+        const existingPreference = roomRackSortPreferences.get(roomId);
+        if (existingPreference) {
+            return existingPreference;
+        }
+
+        const nextPreference = {
+            field: defaultRackSortPreference.field,
+            direction: defaultRackSortPreference.direction
+        };
+        roomRackSortPreferences.set(roomId, nextPreference);
+        return nextPreference;
+    }
+
+    function normalizeSortValue(value) {
+        return String(value || "").trim().toLowerCase();
+    }
+
+    function compareRackByField(leftRack, rightRack, field) {
+        const leftValue = normalizeSortValue(field === "name" ? leftRack.name : leftRack.tag);
+        const rightValue = normalizeSortValue(field === "name" ? rightRack.name : rightRack.tag);
+
+        if (leftValue < rightValue) {
+            return -1;
+        }
+        if (leftValue > rightValue) {
+            return 1;
+        }
+
+        const leftName = normalizeSortValue(leftRack.name);
+        const rightName = normalizeSortValue(rightRack.name);
+        if (leftName < rightName) {
+            return -1;
+        }
+        if (leftName > rightName) {
+            return 1;
+        }
+
+        const leftTag = normalizeSortValue(leftRack.tag);
+        const rightTag = normalizeSortValue(rightRack.tag);
+        if (leftTag < rightTag) {
+            return -1;
+        }
+        if (leftTag > rightTag) {
+            return 1;
+        }
+
+        return 0;
+    }
+
+    function sortRacksForRoom(racks, roomId) {
+        const preference = getRackSortPreference(roomId);
+        const multiplier = preference.direction === "desc" ? -1 : 1;
+        const field = normalizeSortField(preference.field);
+
+        return racks
+            .slice()
+            .sort((leftRack, rightRack) => compareRackByField(leftRack, rightRack, field) * multiplier);
+    }
+
+    function pruneRoomRackSortPreferences() {
+        const activeRoomIds = new Set((catalog.rooms || []).map(room => room.id));
+        Array.from(roomRackSortPreferences.keys()).forEach(roomId => {
+            if (!activeRoomIds.has(roomId)) {
+                roomRackSortPreferences.delete(roomId);
+            }
+        });
+    }
+
     function setStatus(message) {
         statusEl.textContent = message;
     }
@@ -395,6 +478,7 @@ export function initIndexPage() {
 
     function renderRoomSections() {
         roomSectionsEl.innerHTML = "";
+        pruneRoomRackSortPreferences();
 
         if (catalog.rooms.length === 0) {
             roomSectionsEl.innerHTML = '<div class="message-banner">No equipment rooms yet.</div>';
@@ -420,6 +504,56 @@ export function initIndexPage() {
             titleWrap.appendChild(title);
             titleWrap.appendChild(meta);
 
+            const controls = document.createElement("div");
+            controls.className = "room-section__controls";
+
+            const sortPreference = getRackSortPreference(room.id);
+
+            const sortFieldLabel = document.createElement("label");
+            sortFieldLabel.className = "room-section__control";
+            sortFieldLabel.textContent = "Sort by";
+
+            const sortFieldSelect = document.createElement("select");
+            sortFieldSelect.className = "room-section__select";
+            sortFieldSelect.setAttribute("aria-label", `Sort racks in ${room.name} by field`);
+            sortFieldSelect.innerHTML = [
+                '<option value="tag">Rack Tag</option>',
+                '<option value="name">Rack Name</option>'
+            ].join("");
+            sortFieldSelect.value = normalizeSortField(sortPreference.field);
+            sortFieldSelect.addEventListener("change", () => {
+                roomRackSortPreferences.set(room.id, {
+                    ...getRackSortPreference(room.id),
+                    field: normalizeSortField(sortFieldSelect.value)
+                });
+                renderRoomSections();
+            });
+            sortFieldLabel.appendChild(sortFieldSelect);
+
+            const sortDirectionLabel = document.createElement("label");
+            sortDirectionLabel.className = "room-section__control";
+            sortDirectionLabel.textContent = "Order";
+
+            const sortDirectionSelect = document.createElement("select");
+            sortDirectionSelect.className = "room-section__select";
+            sortDirectionSelect.setAttribute("aria-label", `Sort racks in ${room.name} by order`);
+            sortDirectionSelect.innerHTML = [
+                '<option value="asc">Ascending</option>',
+                '<option value="desc">Descending</option>'
+            ].join("");
+            sortDirectionSelect.value = normalizeSortDirection(sortPreference.direction);
+            sortDirectionSelect.addEventListener("change", () => {
+                roomRackSortPreferences.set(room.id, {
+                    ...getRackSortPreference(room.id),
+                    direction: normalizeSortDirection(sortDirectionSelect.value)
+                });
+                renderRoomSections();
+            });
+            sortDirectionLabel.appendChild(sortDirectionSelect);
+
+            controls.appendChild(sortFieldLabel);
+            controls.appendChild(sortDirectionLabel);
+
             const deleteRoomButton = document.createElement("button");
             deleteRoomButton.type = "button";
             deleteRoomButton.className = "danger-button";
@@ -435,21 +569,27 @@ export function initIndexPage() {
                 setStatus(`Deleted room ${room.name}.`);
             });
 
+            const roomActions = document.createElement("div");
+            roomActions.className = "room-section__actions";
+            roomActions.appendChild(controls);
+            roomActions.appendChild(deleteRoomButton);
+
             header.appendChild(titleWrap);
-            header.appendChild(deleteRoomButton);
+            header.appendChild(roomActions);
             section.appendChild(header);
 
             const rackList = document.createElement("div");
             rackList.className = "rack-list";
 
-            const racks = Array.isArray(room.racks) ? room.racks : [];
-            if (racks.length === 0) {
+            const roomRacks = Array.isArray(room.racks) ? room.racks : [];
+            if (roomRacks.length === 0) {
                 const empty = document.createElement("div");
                 empty.className = "room-section__meta";
                 empty.textContent = "No racks in this room yet.";
                 rackList.appendChild(empty);
             } else {
-                racks.forEach(rack => {
+                const sortedRacks = sortRacksForRoom(roomRacks, room.id);
+                sortedRacks.forEach(rack => {
                     const rackItem = document.createElement("div");
                     rackItem.className = "rack-item";
 
@@ -489,7 +629,7 @@ export function initIndexPage() {
                             return;
                         }
 
-                        room.racks = racks.filter(entry => entry.id !== rack.id);
+                        room.racks = roomRacks.filter(entry => entry.id !== rack.id);
                         persistAndRender();
                         setStatus(`Deleted rack ${rack.name}.`);
                     });

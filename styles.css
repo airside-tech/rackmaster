@@ -736,6 +736,30 @@ body.is-side-dragging #rack {
     font-size: 12px;
 }
 
+.room-section__actions {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+
+.room-section__controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.room-section__control {
+    display: grid;
+    gap: 4px;
+    font-size: 11px;
+    color: var(--muted);
+}
+
+.room-section__select {
+    min-width: 130px;
+}
+
 .rack-list {
     display: grid;
     gap: 8px;
@@ -1294,6 +1318,21 @@ input.is-invalid {
     .index-page #createRoomForm,
     .index-page #createRackForm {
         grid-template-columns: 1fr;
+    }
+
+    .room-section__header,
+    .room-section__actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .room-section__controls {
+        align-items: stretch;
+    }
+
+    .room-section__select {
+        min-width: 0;
+        width: 100%;
     }
 
     .rack-item {
