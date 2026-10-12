@@ -1,3 +1,5 @@
+import { getTotalPowerConsumption } from "./placementEngine.js";
+
 export function createRackCatalogHandlers(context) {
     const {
         activeRackId,
@@ -124,6 +126,7 @@ export function createRackCatalogHandlers(context) {
         locatedRack.rack.depth = Math.max(minimumRackDepthCm, Number(state.rackProfile.rackDepthCm) || minimumRackDepthCm);
         locatedRack.rack.width = Math.max(minimumRackWidthCm, Number(state.rackProfile.rackWidthCm) || defaultRackWidthCm);
         locatedRack.rack.notes = state.rackProfile.notes || locatedRack.rack.notes || "";
+        locatedRack.rack.power = getTotalPowerConsumption(state.rackComponents);
         locatedRack.rack.powerA = state.rackProfile.powerA || "";
         locatedRack.rack.powerB = state.rackProfile.powerB || "";
         locatedRack.rack.updatedAt = new Date().toISOString();

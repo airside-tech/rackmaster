@@ -1,3 +1,5 @@
+import { getTotalPowerConsumption } from "./planner/placementEngine.js";
+
 export const catalogStorageKey = "rackplanner.catalog.v1";
 export const catalogCorruptBackupKey = "rackplanner.catalog.v1.corrupt.backup";
 
@@ -9,7 +11,7 @@ function createEmptyCatalog() {
     };
 }
 
-function normalizeCatalog(parsedCatalog) {
+export function normalizeCatalog(parsedCatalog) {
     const normalizedRooms = Array.isArray(parsedCatalog?.rooms) ? parsedCatalog.rooms : [];
     normalizedRooms.forEach(room => {
         room.racks = Array.isArray(room.racks) ? room.racks : [];
@@ -19,6 +21,12 @@ function normalizeCatalog(parsedCatalog) {
             }
             if (rack.plannerState?.rackProfile && !Number.isFinite(Number(rack.plannerState.rackProfile.rackWidthCm))) {
                 rack.plannerState.rackProfile.rackWidthCm = Number(rack.width) || 60;
+            }
+
+            if (Array.isArray(rack.plannerState?.components)) {
+                rack.power = getTotalPowerConsumption(rack.plannerState.components);
+            } else if (!Number.isFinite(Number(rack.power))) {
+                rack.power = 0;
             }
         });
     });

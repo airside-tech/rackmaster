@@ -4,6 +4,7 @@ import { catalogPayloadToXlsxBuffer, xlsxBufferToCatalogPayload } from "../excel
 import { clearCatalogStorage, getCatalogStorageMode, readCatalog, writeCatalog } from "../storage.js";
 import { createCatalogId } from "../typeUtils.js";
 import { chooseDataFormat } from "../shared/chooseDataFormat.js";
+import { getRackPowerW } from "../planner/placementEngine.js";
 
 function createEmptySideCompartmentState() {
     return {
@@ -603,7 +604,8 @@ export function initIndexPage() {
                     rackMeta.className = "room-section__meta";
                     const tileX = rack.tileX == null ? "-" : rack.tileX;
                     const tileY = rack.tileY == null ? "-" : rack.tileY;
-                    rackMeta.textContent = `${rack.heightRU || 42} RU | Tile ${tileX}, ${tileY} | Depth ${rack.depth || 0} | Width ${Math.max(minimumRackWidthCm, Number(rack.width) || defaultRackWidthCm)} | Power ${rack.power || 0}${rack.notes ? ` | ${rack.notes}` : ""}`;
+                    const rackPowerW = getRackPowerW(rack);
+                    rackMeta.textContent = `${rack.heightRU || 42} RU | Tile ${tileX}, ${tileY} | Depth ${rack.depth || 0} | Width ${Math.max(minimumRackWidthCm, Number(rack.width) || defaultRackWidthCm)} | Power ${rackPowerW} W${rack.notes ? ` | ${rack.notes}` : ""}`;
 
                     rackInfo.appendChild(rackTitle);
                     rackInfo.appendChild(rackMeta);
