@@ -1,13 +1,6 @@
 import { readCatalog, writeCatalog } from "../storage.js";
 import { createId, normalizeTypeClass } from "../typeUtils.js";
 import {
-    acquireRackLock,
-    ensureLockOwner,
-    isLockingEnabled,
-    releaseRackLock,
-    sendLockHeartbeat
-} from "./lockClient.js";
-import {
     adjustBrightness,
     colorPresets,
     getComponentBackground,
@@ -16,7 +9,6 @@ import {
     setDefaultColor
 } from "./colors.js";
 import {
-    createLibraryState,
     createInitialPlannerState,
     defaultRackHeightRU,
     maximumRackHeightRU,
@@ -24,14 +16,14 @@ import {
     warningRackHeightRU,
     rackUnitPixelHeight
 } from "./state.js";
-import { persistLibraryCategories, readPersistedLibraryPayload } from "./libraryStorage.js";
 import {
     createEmptySideCompartmentState,
     getDefaultSideItemColor,
     getSideItemBackground,
     getSideItemDisplayLabel,
     normalizeSideCompartmentItem,
-    normalizeSideCompartmentState
+    normalizeSideCompartmentState,
+    sideCompartmentLibrarySeed
 } from "./sideCompartments.js";
 import {
     getBlockedOppositeFaceComponents,
@@ -60,7 +52,7 @@ import { createPlannerHelpers } from "./helpers.js";
 import { createRackCatalogHandlers } from "./rackCatalogSync.js";
 import { createPlannerUi } from "./ui.js";
 
-export async function initPlannerPage() {
+export function initPlannerPage() {
     const rackFrameEl = document.getElementById("rackFrame");
     const rackEl = document.getElementById("rack");
     const rackStageHeadingEl = document.getElementById("rackStageHeading");
@@ -75,6 +67,7 @@ export async function initPlannerPage() {
     const rackSideLabelRearEl = document.getElementById("rackSideLabelRear");
     const sideCompartmentLeftEl = document.getElementById("sideCompartmentLeft");
     const sideCompartmentRightEl = document.getElementById("sideCompartmentRight");
+    const sideCompartmentLibraryEl = document.getElementById("sideCompartmentLibrary");
     const sideViewEl = document.getElementById("rackSideView");
     const rackPropertiesPanelEl = document.getElementById("rackPropertiesPanel");
     const rackPropertiesInfoEl = document.getElementById("rackPropertiesInfo");
@@ -84,6 +77,8 @@ export async function initPlannerPage() {
     const rackDepthInput = document.getElementById("rackDepthInput");
     const rackWidthInput = document.getElementById("rackWidthInput");
     const rackRoomInput = document.getElementById("rackRoomInput");
+    const rackTileXInput = document.getElementById("rackTileXInput");
+    const rackTileYInput = document.getElementById("rackTileYInput");
     const rackOwnerInput = document.getElementById("rackOwnerInput");
     const rackPowerAInput = document.getElementById("rackPowerAInput");
     const rackPowerBInput = document.getElementById("rackPowerBInput");
@@ -107,211 +102,30 @@ export async function initPlannerPage() {
     const deleteSelectedEditorButton = document.getElementById("deleteSelectedEditor");
     const clearSelectedEditorButton = document.getElementById("clearSelectedEditor");
     const selectedEditorInfoEl = document.getElementById("selectedEditorInfo");
+    const selectedSideItemInfoEl = document.getElementById("selectedSideItemInfo");
+    const saveSelectedSideItemButton = document.getElementById("saveSelectedSideItem");
+    const deleteSelectedSideItemButton = document.getElementById("deleteSelectedSideItem");
+    const clearSideItemSelectionButton = document.getElementById("clearSideItemSelection");
     const loadRackInput = document.getElementById("loadRackInput");
     const loadLibraryInput = document.getElementById("loadLibraryInput");
     const libraryCategorySelect = document.getElementById("libraryCategorySelect");
     const libraryNewCategoryNameInput = document.getElementById("libraryNewCategoryName");
     const customSideLabelNameInput = document.getElementById("customSideLabelName");
-    const customSideLabelRUInput = document.getElementById("customSideLabelRU");
     const customSideLabelNotesInput = document.getElementById("customSideLabelNotes");
     const customSideLabelColorInput = document.getElementById("customSideLabelColor");
     const addCustomSideLabelLeftButton = document.getElementById("addCustomSideLabelLeft");
     const addCustomSideLabelRightButton = document.getElementById("addCustomSideLabelRight");
 
-    const requiredPlannerElements = {
-        rackFrameEl,
-        rackEl,
-        accordionEl,
-        rackInfoEl,
-        plannerNoticeEl,
-        viewLegendEl,
-        rackIdentityBarEl,
-        rackNameTagEl,
-        viewModeBadgeEl,
-        rackSideLabelFrontEl,
-        rackSideLabelRearEl,
-        sideCompartmentLeftEl,
-        sideCompartmentRightEl,
-        rackPropertiesPanelEl,
-        rackPropertiesInfoEl,
-        rackNameInput,
-        rackTagInput,
-        rackHeightInput,
-        rackDepthInput,
-        rackWidthInput,
-        rackRoomInput,
-        rackOwnerInput,
-        rackPowerAInput,
-        rackPowerBInput,
-        rackClearanceInput,
-        rackNotesInput,
-        saveRackPropertiesButton,
-        toggleViewButton,
-        libraryFormToggleButton,
-        libraryFormToggleLabelEl,
-        libraryFormCollapseEl,
-        sideCompartmentFormToggleButton,
-        sideCompartmentFormToggleLabelEl,
-        sideCompartmentFormCollapseEl,
-        rackPropertiesToggleButton,
-        rackPropertiesToggleLabelEl,
-        rackPropertiesCollapseEl,
-        addLibraryComponentButton,
-        selectedEditorPanelEl,
-        selectedEditorModeEl,
-        saveSelectedEditorButton,
-        deleteSelectedEditorButton,
-        clearSelectedEditorButton,
-        selectedEditorInfoEl,
-        loadRackInput,
-        loadLibraryInput,
-        libraryCategorySelect,
-        libraryNewCategoryNameInput,
-        customSideLabelNameInput,
-        customSideLabelRUInput,
-        customSideLabelNotesInput,
-        customSideLabelColorInput,
-        addCustomSideLabelLeftButton,
-        addCustomSideLabelRightButton
-    };
-    const missingPlannerElements = Object.entries(requiredPlannerElements)
-        .filter(([, element]) => !element)
-        .map(([name]) => name);
-
-    if (missingPlannerElements.length > 0) {
-        console.error("RackMaster planner init aborted. Missing required elements:", missingPlannerElements);
+    if (!rackFrameEl || !rackEl || !accordionEl || !rackInfoEl || !plannerNoticeEl || !viewLegendEl || !rackIdentityBarEl || !rackNameTagEl || !viewModeBadgeEl || !rackSideLabelFrontEl || !rackSideLabelRearEl || !sideCompartmentLeftEl || !sideCompartmentRightEl || !sideCompartmentLibraryEl || !rackPropertiesPanelEl || !rackPropertiesInfoEl || !rackNameInput || !rackTagInput || !rackHeightInput || !rackDepthInput || !rackWidthInput || !rackRoomInput || !rackTileXInput || !rackTileYInput || !rackOwnerInput || !rackPowerAInput || !rackPowerBInput || !rackClearanceInput || !rackNotesInput || !saveRackPropertiesButton || !toggleViewButton || !libraryFormToggleButton || !libraryFormToggleLabelEl || !libraryFormCollapseEl || !sideCompartmentFormToggleButton || !sideCompartmentFormToggleLabelEl || !sideCompartmentFormCollapseEl || !rackPropertiesToggleButton || !rackPropertiesToggleLabelEl || !rackPropertiesCollapseEl || !addLibraryComponentButton || !selectedEditorPanelEl || !selectedEditorModeEl || !saveSelectedEditorButton || !deleteSelectedEditorButton || !clearSelectedEditorButton || !selectedEditorInfoEl || !selectedSideItemInfoEl || !saveSelectedSideItemButton || !deleteSelectedSideItemButton || !clearSideItemSelectionButton || !loadRackInput || !loadLibraryInput || !libraryCategorySelect || !libraryNewCategoryNameInput || !customSideLabelNameInput || !customSideLabelNotesInput || !customSideLabelColorInput || !addCustomSideLabelLeftButton || !addCustomSideLabelRightButton) {
         return;
     }
 
-    const activeRackId = new URLSearchParams(window.location.search).get("rackId");
     const state = createInitialPlannerState();
-    const persistedLibraryPayload = readPersistedLibraryPayload();
-    if (persistedLibraryPayload && Array.isArray(persistedLibraryPayload.categories)) {
-        state.libraryCategories = createLibraryState(persistedLibraryPayload.categories);
-    }
-    const lockState = {
-        enabled: isLockingEnabled() && Boolean(activeRackId),
-        canEdit: !(isLockingEnabled() && Boolean(activeRackId)),
-        owner: "",
-        heartbeatId: null
-    };
-
-    function canMutate() {
-        return lockState.canEdit;
-    }
-
-    function setMutatingControlsEnabled(enabled) {
-        const lockableElements = [
-            addLibraryComponentButton,
-            saveRackPropertiesButton,
-            saveSelectedEditorButton,
-            deleteSelectedEditorButton,
-            addCustomSideLabelLeftButton,
-            addCustomSideLabelRightButton,
-            rackNameInput,
-            rackTagInput,
-            rackHeightInput,
-            rackDepthInput,
-            rackWidthInput,
-            rackRoomInput,
-            rackOwnerInput,
-            rackPowerAInput,
-            rackPowerBInput,
-            rackClearanceInput,
-            rackNotesInput,
-            customSideLabelNameInput,
-            customSideLabelRUInput,
-            customSideLabelNotesInput,
-            customSideLabelColorInput,
-            selectedComponentFields.name,
-            selectedComponentFields.ru,
-            selectedComponentFields.position,
-            selectedComponentFields.depth,
-            selectedComponentFields.power,
-            selectedComponentFields.description,
-            selectedComponentFields.color,
-            selectedComponentFields.notes,
-            selectedSideItemFields.name,
-            selectedSideItemFields.side,
-            selectedSideItemFields.ru,
-            selectedSideItemFields.position,
-            selectedSideItemFields.color,
-            selectedSideItemFields.notes,
-            libraryCategorySelect,
-            libraryNewCategoryNameInput,
-            document.getElementById("libraryComponentName"),
-            document.getElementById("libraryComponentHeight"),
-            document.getElementById("libraryComponentClass"),
-            document.getElementById("libraryComponentDepth"),
-            document.getElementById("libraryComponentPower"),
-            document.getElementById("customColorInput")
-        ].filter(Boolean);
-
-        lockableElements.forEach(element => {
-            element.disabled = !enabled;
-        });
-    }
-
-    async function initializeRackLock() {
-        if (!lockState.enabled || !activeRackId) {
-            setMutatingControlsEnabled(true);
-            return;
-        }
-
-        setMutatingControlsEnabled(false);
-        const owner = ensureLockOwner();
-        if (!owner) {
-            lockState.canEdit = false;
-            setNotice("No lock owner entered. Planner is read-only.", "warning");
-            return;
-        }
-
-        lockState.owner = owner;
-
-        try {
-            const lockResponse = await acquireRackLock(activeRackId, owner);
-            if (!lockResponse.locked) {
-                lockState.canEdit = false;
-                const heldBy = lockResponse.lock?.owner ? ` (held by ${lockResponse.lock.owner})` : "";
-                setNotice(`${lockResponse.message || "Could not acquire lock."}${heldBy}`, "warning");
-                setMutatingControlsEnabled(false);
-                return;
-            }
-
-            lockState.canEdit = true;
-            setMutatingControlsEnabled(true);
-            setNotice(`Edit lock acquired as ${owner}.`);
-
-            lockState.heartbeatId = window.setInterval(async () => {
-                const heartbeat = await sendLockHeartbeat(activeRackId, owner);
-                if (heartbeat.ok) {
-                    return;
-                }
-
-                lockState.canEdit = false;
-                setMutatingControlsEnabled(false);
-                if (lockState.heartbeatId) {
-                    window.clearInterval(lockState.heartbeatId);
-                    lockState.heartbeatId = null;
-                }
-                setNotice("Lock lost. Planner switched to read-only mode.", "warning");
-            }, 30000);
-
-            window.addEventListener("beforeunload", () => {
-                void releaseRackLock(activeRackId, owner);
-            });
-        } catch (error) {
-            lockState.canEdit = false;
-            setMutatingControlsEnabled(false);
-            setNotice(`Could not initialize lock service: ${error.message}`, "warning");
-        }
-    }
 
     const selectedComponentFields = {
         name: document.getElementById("selectedComponentName"),
         ru: document.getElementById("selectedComponentHeight"),
         position: document.getElementById("selectedComponentPosition"),
-        side: document.getElementById("selectedSideItemSide"),
         depth: document.getElementById("selectedComponentDepth"),
         power: document.getElementById("selectedComponentPower"),
         description: document.getElementById("selectedComponentDescription"),
@@ -319,19 +133,7 @@ export async function initPlannerPage() {
         notes: document.getElementById("selectedComponentNotes")
     };
     const selectedComponentColorPresetsEl = document.getElementById("selectedComponentColorPresets");
-    if (!selectedComponentFields.name || !selectedComponentFields.ru || !selectedComponentFields.position || !selectedComponentFields.side || !selectedComponentFields.depth || !selectedComponentFields.power || !selectedComponentFields.description || !selectedComponentFields.color || !selectedComponentFields.notes || !selectedComponentColorPresetsEl) {
-        console.error("RackMaster planner init failed: missing selected component fields.", {
-            name: !selectedComponentFields.name,
-            ru: !selectedComponentFields.ru,
-            position: !selectedComponentFields.position,
-            side: !selectedComponentFields.side,
-            depth: !selectedComponentFields.depth,
-            power: !selectedComponentFields.power,
-            description: !selectedComponentFields.description,
-            color: !selectedComponentFields.color,
-            notes: !selectedComponentFields.notes,
-            colorPresets: !selectedComponentColorPresetsEl
-        });
+    if (!selectedComponentFields.name || !selectedComponentFields.ru || !selectedComponentFields.position || !selectedComponentFields.depth || !selectedComponentFields.power || !selectedComponentFields.description || !selectedComponentFields.color || !selectedComponentFields.notes || !selectedComponentColorPresetsEl) {
         return;
     }
 
@@ -344,30 +146,20 @@ export async function initPlannerPage() {
         color: selectedComponentFields.color
     };
     const selectedSideItemFields = {
-        name: selectedComponentFields.name,
-        side: selectedComponentFields.side,
-        ru: selectedComponentFields.ru,
-        position: selectedComponentFields.position,
-        color: selectedComponentFields.color,
-        notes: selectedComponentFields.notes
+        name: document.getElementById("selectedSideItemName"),
+        side: document.getElementById("selectedSideItemSide"),
+        color: document.getElementById("selectedSideItemColor"),
+        notes: document.getElementById("selectedSideItemNotes")
     };
-    if (!selectedSideItemFields.name || !selectedSideItemFields.side || !selectedSideItemFields.ru || !selectedSideItemFields.position || !selectedSideItemFields.color || !selectedSideItemFields.notes) {
-        console.error("RackMaster planner init failed: missing selected side item fields.", {
-            name: !selectedSideItemFields.name,
-            side: !selectedSideItemFields.side,
-            ru: !selectedSideItemFields.ru,
-            position: !selectedSideItemFields.position,
-            color: !selectedSideItemFields.color,
-            notes: !selectedSideItemFields.notes
-        });
-        return;
-    }
+
+    const activeRackId = new URLSearchParams(window.location.search).get("rackId");
 
     let plannerUi = null;
     const renderAll = () => plannerUi.renderAll();
     const renderLibrary = () => plannerUi.renderLibrary();
     const renderRack = () => plannerUi.renderRack();
     const renderSelectedEditorPanel = () => plannerUi.renderSelectedEditorPanel();
+    const renderSelectedSideItemPanel = () => plannerUi.renderSelectedSideItemPanel();
     const renderSideCompartments = () => plannerUi.renderSideCompartments();
     const renderSideView = () => plannerUi.renderSideView();
     const renderStatus = () => plannerUi.renderStatus();
@@ -395,7 +187,6 @@ export async function initPlannerPage() {
     const {
         clearActiveDragSource,
         clearSideCompartmentDropTargets,
-        clientYToSideCompartmentPosition,
         clientYToRackPosition,
         cloneRackComponent,
         findFirstAvailablePosition,
@@ -451,7 +242,6 @@ export async function initPlannerPage() {
         selectedLibraryFields,
         selectedSideItemFields,
         customSideLabelNameInput,
-        customSideLabelRUInput,
         customSideLabelNotesInput,
         customSideLabelColorInput,
         libraryCategorySelect,
@@ -480,19 +270,14 @@ export async function initPlannerPage() {
         renderSideView,
         renderLibrary,
         renderSelectedEditorPanel,
+        renderSelectedSideItemPanel,
         syncActiveRackToCatalog,
-        persistLibraryCategories,
         setNotice,
-        renderStatus,
-        canMutate
+        renderStatus
     });
 
     const plannerDragDrop = createPlannerDragDrop({
         state,
-        rackEl,
-        rackFrameEl,
-        sideCompartmentLeftEl,
-        sideCompartmentRightEl,
         parseDraggedPayload,
         clearSideCompartmentDropTargets,
         clearActiveDragSource,
@@ -503,7 +288,6 @@ export async function initPlannerPage() {
         reorderSideCompartmentItems,
         getDefaultSideItemColor,
         addSideCompartmentItem: plannerActions.addSideCompartmentItem,
-        clientYToSideCompartmentPosition,
         clientYToRackPosition,
         isRackPositionAvailable,
         getPlacementAnalysis,
@@ -513,8 +297,7 @@ export async function initPlannerPage() {
         renderRack,
         renderAll,
         syncActiveRackToCatalog,
-        setNotice,
-        canMutate
+        setNotice
     });
 
     const {
@@ -526,8 +309,10 @@ export async function initPlannerPage() {
         handleAddLibraryComponent,
         handleDecreaseRackHeight,
         handleDeleteSelectedEditor,
+        handleDeleteSelectedSideItem,
         handleIncreaseRackHeight,
         handleSaveSelectedEditor,
+        handleSaveSelectedSideItem,
         handleSelectLibraryItem,
         handleSelectRackComponent,
         handleSelectSideCompartmentItem,
@@ -559,7 +344,6 @@ export async function initPlannerPage() {
         loadLibraryInput,
         setNotice,
         renderAll,
-        persistLibraryCategories,
         syncActiveRackToCatalog: () => syncActiveRackToCatalog(),
         cloneRackComponent
     });
@@ -574,6 +358,8 @@ export async function initPlannerPage() {
         rackDepthInput,
         rackWidthInput,
         rackRoomInput,
+        rackTileXInput,
+        rackTileYInput,
         rackOwnerInput,
         rackPowerAInput,
         rackPowerBInput,
@@ -585,8 +371,7 @@ export async function initPlannerPage() {
         setActiveEditor,
         renderAll,
         setNotice,
-        plannerFileFlows,
-        canMutate
+        plannerFileFlows
     });
 
     const handleExportDrawingPdf = createPdfExportHandler({
@@ -611,6 +396,8 @@ export async function initPlannerPage() {
         rackDepthInput,
         rackWidthInput,
         rackRoomInput,
+        rackTileXInput,
+        rackTileYInput,
         rackOwnerInput,
         rackPowerAInput,
         rackPowerBInput,
@@ -624,6 +411,7 @@ export async function initPlannerPage() {
         toggleViewButton,
         rackSideLabelFrontEl,
         rackSideLabelRearEl,
+        sideCompartmentLibraryEl,
         sideCompartmentLeftEl,
         sideCompartmentRightEl,
         accordionEl,
@@ -643,6 +431,11 @@ export async function initPlannerPage() {
         saveSelectedEditorButton,
         deleteSelectedEditorButton,
         clearSelectedEditorButton,
+        selectedSideItemFields,
+        selectedSideItemInfoEl,
+        saveSelectedSideItemButton,
+        deleteSelectedSideItemButton,
+        clearSideItemSelectionButton,
         libraryFormCollapseEl,
         libraryFormToggleButton,
         libraryFormToggleLabelEl,
@@ -656,6 +449,7 @@ export async function initPlannerPage() {
         getDefaultColor,
         setDefaultColor,
         adjustBrightness,
+        sideCompartmentLibrarySeed,
         getSideCompartmentItems,
         getSideItemBackground,
         getSideItemDisplayLabel,
@@ -707,5 +501,4 @@ export async function initPlannerPage() {
     syncRackPropertiesDisclosure();
     renderAll();
     loadRackFromCatalog();
-    await initializeRackLock();
 }

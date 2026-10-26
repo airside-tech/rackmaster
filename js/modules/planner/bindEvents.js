@@ -9,6 +9,9 @@ export function bindPlannerEvents(context) {
         saveSelectedEditorButton,
         deleteSelectedEditorButton,
         clearSelectedEditorButton,
+        saveSelectedSideItemButton,
+        deleteSelectedSideItemButton,
+        clearSideItemSelectionButton,
         addCustomSideLabelLeftButton,
         addCustomSideLabelRightButton,
         toggleViewButton,
@@ -19,7 +22,6 @@ export function bindPlannerEvents(context) {
         rackIdentityBarEl,
         rackInfoEl,
         rackEl,
-        rackFrameEl,
         sideCompartmentLeftEl,
         sideCompartmentRightEl,
         sideViewEl,
@@ -51,8 +53,13 @@ export function bindPlannerEvents(context) {
     saveSelectedEditorButton.addEventListener("click", plannerActions.handleSaveSelectedEditor);
     deleteSelectedEditorButton.addEventListener("click", plannerActions.handleDeleteSelectedEditor);
     clearSelectedEditorButton.addEventListener("click", plannerActions.clearSelectedEditor);
+    saveSelectedSideItemButton.addEventListener("click", plannerActions.handleSaveSelectedSideItem);
+    deleteSelectedSideItemButton.addEventListener("click", plannerActions.handleDeleteSelectedSideItem);
+    clearSideItemSelectionButton.addEventListener("click", plannerActions.clearSelectedSideItem);
     addCustomSideLabelLeftButton.addEventListener("click", () => plannerActions.handleAddCustomSideLabel("left"));
     addCustomSideLabelRightButton.addEventListener("click", () => plannerActions.handleAddCustomSideLabel("right"));
+    document.getElementById("increaseHeight").addEventListener("click", plannerActions.handleIncreaseRackHeight);
+    document.getElementById("decreaseHeight").addEventListener("click", plannerActions.handleDecreaseRackHeight);
     toggleViewButton.addEventListener("click", plannerActions.handleToggleView);
     document.getElementById("saveRackButton").addEventListener("click", plannerFileFlows.saveRackToFile);
     document.getElementById("saveLibraryButton").addEventListener("click", plannerFileFlows.saveLibraryToFile);
@@ -96,17 +103,7 @@ export function bindPlannerEvents(context) {
         plannerActions.handleSelectRackComponent(componentEl.dataset.componentId);
     });
 
-    rackFrameEl.addEventListener("dragenter", plannerDragDrop.handleSideCompartmentDragEnter);
-    rackFrameEl.addEventListener("dragover", plannerDragDrop.handleSideCompartmentDragOver);
-    rackFrameEl.addEventListener("drop", plannerDragDrop.handleSideCompartmentDrop);
-    rackFrameEl.addEventListener("dragleave", plannerDragDrop.handleSideCompartmentDragLeave);
-    const captureDragEvents = { capture: true };
-    window.addEventListener("dragenter", plannerDragDrop.handleGlobalDragEnter, captureDragEvents);
-    window.addEventListener("dragover", plannerDragDrop.handleGlobalDragOver, captureDragEvents);
-    window.addEventListener("drop", plannerDragDrop.handleGlobalDrop, captureDragEvents);
-
     [sideCompartmentLeftEl, sideCompartmentRightEl].forEach(element => {
-        element.addEventListener("dragenter", plannerDragDrop.handleSideCompartmentDragEnter);
         element.addEventListener("dragover", plannerDragDrop.handleSideCompartmentDragOver);
         element.addEventListener("drop", plannerDragDrop.handleSideCompartmentDrop);
         element.addEventListener("dragleave", plannerDragDrop.handleSideCompartmentDragLeave);

@@ -2,23 +2,10 @@ import { createId } from "../typeUtils.js";
 import { adjustBrightness } from "./colors.js";
 
 export const sideCompartmentLibrarySeed = [
-    { type: "fiber-cables", name: "Fibre Optic Cables", description: "Cable tray / slack storage", color: "#1d8a9b", ru: 5 },
-    { type: "power-cables", name: "Power Cables", description: "Power routing and excess length", color: "#d97706", ru: 5 },
-    { type: "patch-cables", name: "Patch Cables", description: "Patch bundle / service loops", color: "#2c9874", ru: 5 }
+    { type: "fiber-cables", name: "Fibre Optic Cables", description: "Cable tray / slack storage", color: "#1d8a9b" },
+    { type: "power-cables", name: "Power Cables", description: "Power routing and excess length", color: "#d97706" },
+    { type: "patch-cables", name: "Patch Cables", description: "Patch bundle / service loops", color: "#2c9874" }
 ];
-
-function clampSideItemRU(value, maxRackHeight = 50) {
-    const maxRU = Math.max(1, Number(maxRackHeight) || 50);
-    const parsedRU = Math.floor(Number(value) || 1);
-    return Math.max(1, Math.min(parsedRU, maxRU));
-}
-
-function clampSideItemPosition(value, ru, maxRackHeight = 50, fallbackPosition = 1) {
-    const maxRU = Math.max(1, Number(maxRackHeight) || 50);
-    const maxStartPosition = Math.max(1, maxRU - ru + 1);
-    const parsedPosition = Math.floor(Number(value) || Number(fallbackPosition) || 1);
-    return Math.max(1, Math.min(parsedPosition, maxStartPosition));
-}
 
 export function createEmptySideCompartmentState() {
     return {
@@ -27,12 +14,8 @@ export function createEmptySideCompartmentState() {
     };
 }
 
-export function normalizeSideCompartmentItem(item, fallbackView = "front", fallbackSide = "left", fallbackOrder = 0, maxRackHeight = 50) {
+export function normalizeSideCompartmentItem(item, fallbackView = "front", fallbackSide = "left", fallbackOrder = 0) {
     const itemType = String(item?.type || "custom-label").trim() || "custom-label";
-    const normalizedRU = clampSideItemRU(item?.ru, maxRackHeight);
-    const fallbackPosition = Math.max(1, Number(fallbackOrder) || 1);
-    const normalizedPosition = clampSideItemPosition(item?.position, normalizedRU, maxRackHeight, fallbackPosition);
-
     return {
         id: item?.id || createId("side-item"),
         view: item?.view === "rear" ? "rear" : (fallbackView === "rear" ? "rear" : "front"),
@@ -41,13 +24,11 @@ export function normalizeSideCompartmentItem(item, fallbackView = "front", fallb
         name: String(item?.name || getSideItemTypeLabel(itemType)).trim() || getSideItemTypeLabel(itemType),
         notes: String(item?.notes || "").trim(),
         customColor: String(item?.customColor || "").trim() || getDefaultSideItemColor(itemType),
-        ru: normalizedRU,
-        position: normalizedPosition,
         order: Number(item?.order) || fallbackOrder
     };
 }
 
-export function normalizeSideCompartmentState(sideCompartmentItems, maxRackHeight = 50) {
+export function normalizeSideCompartmentState(sideCompartmentItems) {
     const normalized = createEmptySideCompartmentState();
 
     ["front", "rear"].forEach(view => {
@@ -55,13 +36,8 @@ export function normalizeSideCompartmentState(sideCompartmentItems, maxRackHeigh
             const items = sideCompartmentItems?.[view]?.[side];
             normalized[view][side] = Array.isArray(items)
                 ? items
-                    .map((item, index) => normalizeSideCompartmentItem(item, view, side, index + 1, maxRackHeight))
-                    .sort((leftItem, rightItem) => {
-                        if (leftItem.position !== rightItem.position) {
-                            return rightItem.position - leftItem.position;
-                        }
-                        return leftItem.order - rightItem.order;
-                    })
+                    .map((item, index) => normalizeSideCompartmentItem(item, view, side, index + 1))
+                    .sort((leftItem, rightItem) => leftItem.order - rightItem.order)
                 : [];
         });
     });
@@ -92,7 +68,11 @@ export function getSideItemTypeLabel(type) {
 }
 
 export function getSideItemDisplayLabel(item) {
-    return String(item?.name || "").trim() || getSideItemTypeLabel(item?.type);
+    if (item?.type === "custom-label") {
+        return String(item?.notes || "").trim() || String(item?.name || "").trim() || getSideItemTypeLabel(item?.type);
+    }
+
+    return getSideItemTypeLabel(item?.type);
 }
 
 export function getSideItemBackground(item) {

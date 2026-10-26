@@ -9,6 +9,8 @@ export function createRackCatalogHandlers(context) {
         rackDepthInput,
         rackWidthInput,
         rackRoomInput,
+        rackTileXInput,
+        rackTileYInput,
         rackOwnerInput,
         rackPowerAInput,
         rackPowerBInput,
@@ -20,14 +22,28 @@ export function createRackCatalogHandlers(context) {
         setActiveEditor,
         renderAll,
         setNotice,
-        plannerFileFlows,
-        canMutate = () => true
+        plannerFileFlows
     } = context;
     const minimumRackDepthCm = 20;
     const minimumRackWidthCm = 40;
     const defaultRackWidthCm = 60;
     const maximumRackHeightRU = 50;
     const warningRackHeightRU = 47;
+
+    function parseOptionalTileCoordinate(value) {
+        const rawValue = String(value || "").trim();
+        if (!rawValue) {
+            return "";
+        }
+
+        const numericValue = Number(rawValue);
+        if (!Number.isFinite(numericValue)) {
+            return null;
+        }
+
+        const normalized = Math.trunc(numericValue);
+        return normalized >= 1 ? normalized : null;
+    }
 
     function findRackInCatalog(catalog, rackId) {
         for (const room of catalog.rooms) {
@@ -47,16 +63,14 @@ export function createRackCatalogHandlers(context) {
     }
 
     function handleSaveRackProperties() {
-        if (!canMutate()) {
-            setNotice("Rack properties are read-only because lock is held by another user.", "warning");
-            return;
-        }
         const nextName = rackNameInput.value.trim() || "Main Rack";
         const nextTag = rackTagInput.value.trim() || "RACK-01";
         const rawNextHeightRU = Number(rackHeightInput.value) || state.rackHeightRU || defaultRackHeightRU;
         const nextHeightRU = Math.max(1, rawNextHeightRU);
         const nextDepthCm = Number(rackDepthInput.value);
         const nextWidthCm = Number(rackWidthInput.value);
+        const nextTileX = parseOptionalTileCoordinate(rackTileXInput.value);
+        const nextTileY = parseOptionalTileCoordinate(rackTileYInput.value);
 
         if (nextHeightRU > maximumRackHeightRU) {
             rackHeightInput.value = String(maximumRackHeightRU);
@@ -79,12 +93,26 @@ export function createRackCatalogHandlers(context) {
             return;
         }
 
+        if (nextTileX === null) {
+            rackTileXInput.focus();
+            setNotice("Tile X must be a whole number starting at 1, or left blank.");
+            return;
+        }
+
+        if (nextTileY === null) {
+            rackTileYInput.focus();
+            setNotice("Tile Y must be a whole number starting at 1, or left blank.");
+            return;
+        }
+
         state.rackHeightRU = nextHeightRU;
 
         state.rackProfile = {
             name: nextName,
             tag: nextTag,
             room: rackRoomInput.value.trim(),
+            tileX: nextTileX,
+            tileY: nextTileY,
             owner: rackOwnerInput.value.trim(),
             powerA: rackPowerAInput.value.trim(),
             powerB: rackPowerBInput.value.trim(),
@@ -105,9 +133,6 @@ export function createRackCatalogHandlers(context) {
     }
 
     function syncActiveRackToCatalog() {
-        if (!canMutate()) {
-            return;
-        }
         if (!activeRackId) {
             return;
         }
@@ -124,6 +149,10 @@ export function createRackCatalogHandlers(context) {
         locatedRack.rack.depth = Math.max(minimumRackDepthCm, Number(state.rackProfile.rackDepthCm) || minimumRackDepthCm);
         locatedRack.rack.width = Math.max(minimumRackWidthCm, Number(state.rackProfile.rackWidthCm) || defaultRackWidthCm);
         locatedRack.rack.notes = state.rackProfile.notes || locatedRack.rack.notes || "";
+        const syncedTileX = parseOptionalTileCoordinate(state.rackProfile.tileX);
+        const syncedTileY = parseOptionalTileCoordinate(state.rackProfile.tileY);
+        locatedRack.rack.tileX = syncedTileX === null ? "" : syncedTileX;
+        locatedRack.rack.tileY = syncedTileY === null ? "" : syncedTileY;
         locatedRack.rack.powerA = state.rackProfile.powerA || "";
         locatedRack.rack.powerB = state.rackProfile.powerB || "";
         locatedRack.rack.updatedAt = new Date().toISOString();
@@ -151,6 +180,8 @@ export function createRackCatalogHandlers(context) {
         }
 
         const normalizedRackHeightRU = Math.min(maximumRackHeightRU, Number(locatedRack.rack.heightRU) || defaultRackHeightRU);
+        const catalogTileX = locatedRack.rack.tileX == null ? "" : locatedRack.rack.tileX;
+        const catalogTileY = locatedRack.rack.tileY == null ? "" : locatedRack.rack.tileY;
         const fallbackPayload = {
             rackHeightRU: normalizedRackHeightRU,
             currentView: "front",
@@ -158,6 +189,8 @@ export function createRackCatalogHandlers(context) {
                 name: locatedRack.rack.name || "Main Rack",
                 tag: locatedRack.rack.tag || "RACK-01",
                 room: `${locatedRack.room.name || ""} (${locatedRack.room.building || ""} / ${locatedRack.room.floor || ""})`,
+                tileX: catalogTileX,
+                tileY: catalogTileY,
                 owner: "",
                 powerA: locatedRack.rack.powerA || locatedRack.rack.plannerState?.rackProfile?.powerA || "",
                 powerB: locatedRack.rack.powerB || locatedRack.rack.plannerState?.rackProfile?.powerB || "",
@@ -170,9 +203,22 @@ export function createRackCatalogHandlers(context) {
             sideCompartmentItems: createEmptySideCompartmentState()
         };
 
-        plannerFileFlows.loadRackFromFile(locatedRack.rack.plannerState && Array.isArray(locatedRack.rack.plannerState.components)
-            ? locatedRack.rack.plannerState
-            : fallbackPayload);
+        const plannerStatePayload = locatedRack.rack.plannerState && typeof locatedRack.rack.plannerState === "object"
+            ? {
+                ...locatedRack.rack.plannerState,
+                rackProfile: {
+                    ...locatedRack.rack.plannerState.rackProfile,
+                    tileX: locatedRack.rack.plannerState.rackProfile?.tileX == null || locatedRack.rack.plannerState.rackProfile?.tileX === ""
+                        ? catalogTileX
+                        : locatedRack.rack.plannerState.rackProfile.tileX,
+                    tileY: locatedRack.rack.plannerState.rackProfile?.tileY == null || locatedRack.rack.plannerState.rackProfile?.tileY === ""
+                            ? catalogTileY
+                            : locatedRack.rack.plannerState.rackProfile.tileY
+                }
+            }
+            : fallbackPayload;
+
+        plannerFileFlows.loadRackFromFile(plannerStatePayload);
         if ((Number(locatedRack.rack.heightRU) || defaultRackHeightRU) > maximumRackHeightRU) {
             setNotice(`Loaded ${locatedRack.rack.name} from catalog. Rack height was limited to ${maximumRackHeightRU} RU.`, "warning");
             return;

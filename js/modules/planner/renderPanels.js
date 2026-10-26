@@ -25,6 +25,8 @@ export function renderRackProfile(context) {
         rackDepthInput,
         rackWidthInput,
         rackRoomInput,
+        rackTileXInput,
+        rackTileYInput,
         rackOwnerInput,
         rackPowerAInput,
         rackPowerBInput,
@@ -50,6 +52,8 @@ export function renderRackProfile(context) {
     const rackWidthCm = Math.max(minimumRackWidthCm, Number(state.rackProfile.rackWidthCm) || defaultRackWidthCm);
     rackWidthInput.value = rackWidthCm;
     rackRoomInput.value = state.rackProfile.room || "";
+    rackTileXInput.value = state.rackProfile.tileX == null ? "" : state.rackProfile.tileX;
+    rackTileYInput.value = state.rackProfile.tileY == null ? "" : state.rackProfile.tileY;
     rackOwnerInput.value = state.rackProfile.owner || "";
     rackPowerAInput.value = state.rackProfile.powerA || "";
     rackPowerBInput.value = state.rackProfile.powerB || "";
@@ -86,7 +90,9 @@ export function renderStatus(context) {
     const {
         freeUnitsRU,
         frontUsagePercentSafe,
+        rearDepthUsagePercentSafe,
         totalPowerW,
+        usageScaleClass,
         usedUnitsRU
     } = getRackMetrics();
 
@@ -99,6 +105,8 @@ export function renderStatus(context) {
     }
 
     const frontUsageScaleClass = getUsageScaleClass(frontUsagePercentSafe);
+    const rearUsageScaleClass = getUsageScaleClass(rearDepthUsagePercentSafe);
+    const usageSummaryPercent = Math.max(frontUsagePercentSafe, rearDepthUsagePercentSafe);
     const activeViewText = state.currentView === "front" ? "Front" : "Rear";
     const rackName = state.rackProfile.name || "Main Rack";
     const rackTag = state.rackProfile.tag || "RACK-01";
@@ -125,9 +133,17 @@ export function renderStatus(context) {
             </div>
             <div class="rack-info-col rack-info-col--usage">
                 <div class="rack-usage-wrap">
+                    <div class="rack-usage-title">Overall Usage (max of front/rear): ${usageSummaryPercent}%</div>
+                    <div class="rack-usage-bar">
+                        <div class="rack-usage-fill ${usageScaleClass}" style="width: ${usageSummaryPercent}%;"></div>
+                    </div>
                     <div class="rack-usage-title">Front Side Usage (RU): ${frontUsagePercentSafe}%</div>
                     <div class="rack-usage-bar">
                         <div class="rack-usage-fill ${frontUsageScaleClass}" style="width: ${frontUsagePercentSafe}%;"></div>
+                    </div>
+                    <div class="rack-usage-title">Rear Side Usage (Depth): ${rearDepthUsagePercentSafe}%</div>
+                    <div class="rack-usage-bar">
+                        <div class="rack-usage-fill ${rearUsageScaleClass}" style="width: ${rearDepthUsagePercentSafe}%;"></div>
                     </div>
                 </div>
             </div>
@@ -143,8 +159,6 @@ export function renderSelectedEditorPanel(context) {
     const {
         state,
         getSelectedRackComponent,
-        getSelectedSideCompartmentItem,
-        getDefaultSideItemColor,
         getComponentDisplayColor,
         getComponentRangeLabel,
         updateSelectedEditorPaletteSelection,
@@ -162,18 +176,13 @@ export function renderSelectedEditorPanel(context) {
     const selectedLibraryItem = selectedCategory
         ? selectedCategory.items.find(item => item.id === state.selectedLibraryItemId) || null
         : null;
-    const selectedSideItem = getSelectedSideCompartmentItem();
     const mode = selectedComponent
         ? "component"
-        : selectedSideItem
-            ? "side-item"
         : selectedLibraryItem
             ? "library"
             : "empty";
     const hasSelection = mode !== "empty";
     const isLibraryMode = mode === "library";
-    const isRackMode = mode === "component";
-    const isSideItemMode = mode === "side-item";
 
     Object.values(selectedEditorFields).forEach(field => {
         if (!field) {
@@ -188,17 +197,13 @@ export function renderSelectedEditorPanel(context) {
     if (selectedEditorFields.notes) {
         selectedEditorFields.notes.disabled = !hasSelection || isLibraryMode;
     }
-    if (selectedEditorFields.side) {
-        selectedEditorFields.side.disabled = !isSideItemMode;
-    }
 
     saveSelectedEditorButton.disabled = !hasSelection;
     deleteSelectedEditorButton.disabled = !hasSelection;
     clearSelectedEditorButton.disabled = !hasSelection;
 
-    selectedEditorPanelEl.classList.toggle("is-component-mode", isRackMode);
+    selectedEditorPanelEl.classList.toggle("is-component-mode", mode === "component");
     selectedEditorPanelEl.classList.toggle("is-library-mode", mode === "library");
-    selectedEditorPanelEl.classList.toggle("is-side-item-mode", isSideItemMode);
     selectedEditorPanelEl.classList.toggle("is-empty-mode", mode === "empty");
 
     if (!hasSelection) {
@@ -206,27 +211,21 @@ export function renderSelectedEditorPanel(context) {
         selectedEditorFields.name.value = "";
         selectedEditorFields.ru.value = "";
         selectedEditorFields.position.value = "";
-        if (selectedEditorFields.side) {
-            selectedEditorFields.side.value = "left";
-        }
         selectedEditorFields.depth.value = "";
         selectedEditorFields.power.value = "";
         selectedEditorFields.description.value = "";
         selectedEditorFields.color.value = "#9ca3af";
         updateSelectedEditorPaletteSelection("");
         selectedEditorFields.notes.value = "";
-        selectedEditorInfoEl.textContent = "Select a component, library item, or side-compartment item to edit.";
+        selectedEditorInfoEl.textContent = "Select a component or library item to edit.";
         return;
     }
 
-    if (isRackMode) {
+    if (mode === "component") {
         selectedEditorModeEl.textContent = "Component";
         selectedEditorFields.name.value = selectedComponent.name;
         selectedEditorFields.ru.value = selectedComponent.ru;
         selectedEditorFields.position.value = selectedComponent.position;
-        if (selectedEditorFields.side) {
-            selectedEditorFields.side.value = "left";
-        }
         selectedEditorFields.depth.value = selectedComponent.depth;
         selectedEditorFields.power.value = selectedComponent.power;
         selectedEditorFields.description.value = selectedComponent.description || "";
@@ -237,31 +236,10 @@ export function renderSelectedEditorPanel(context) {
         return;
     }
 
-    if (isSideItemMode) {
-        selectedEditorModeEl.textContent = "Side Item";
-        selectedEditorFields.name.value = selectedSideItem.name;
-        selectedEditorFields.ru.value = Math.max(1, Number(selectedSideItem.ru) || 1);
-        selectedEditorFields.position.value = Math.max(1, Number(selectedSideItem.position) || 1);
-        if (selectedEditorFields.side) {
-            selectedEditorFields.side.value = selectedSideItem.side;
-        }
-        selectedEditorFields.depth.value = "";
-        selectedEditorFields.power.value = "";
-        selectedEditorFields.description.value = "";
-        selectedEditorFields.color.value = selectedSideItem.customColor || getDefaultSideItemColor(selectedSideItem.type);
-        updateSelectedEditorPaletteSelection(selectedEditorFields.color.value);
-        selectedEditorFields.notes.value = selectedSideItem.notes || "";
-        selectedEditorInfoEl.textContent = `Selected: ${selectedSideItem.name} (${selectedSideItem.view} / ${selectedSideItem.side}, ${Math.max(1, Number(selectedSideItem.ru) || 1)}U @ U${Math.max(1, Number(selectedSideItem.position) || 1)})`;
-        return;
-    }
-
     selectedEditorModeEl.textContent = "Library Item";
     selectedEditorFields.name.value = selectedLibraryItem.name;
     selectedEditorFields.ru.value = selectedLibraryItem.ru;
     selectedEditorFields.position.value = "";
-    if (selectedEditorFields.side) {
-        selectedEditorFields.side.value = "left";
-    }
     selectedEditorFields.depth.value = selectedLibraryItem.defaultDepth || 0;
     selectedEditorFields.power.value = selectedLibraryItem.defaultPower || 0;
     selectedEditorFields.description.value = selectedLibraryItem.description || "";
@@ -269,5 +247,46 @@ export function renderSelectedEditorPanel(context) {
     updateSelectedEditorPaletteSelection(selectedEditorFields.color.value);
     selectedEditorFields.notes.value = "";
     selectedEditorInfoEl.textContent = `Selected: ${selectedLibraryItem.name} (${selectedCategory.name})`;
+}
+
+export function renderSelectedSideItemPanel(context) {
+    const {
+        getDefaultSideItemColor,
+        getSelectedSideCompartmentItem,
+        selectedSideItemFields,
+        selectedSideItemInfoEl,
+        saveSelectedSideItemButton,
+        deleteSelectedSideItemButton,
+        clearSideItemSelectionButton
+    } = context;
+
+    const selectedSideItem = getSelectedSideCompartmentItem();
+    const hasSelection = Boolean(selectedSideItem);
+
+    Object.values(selectedSideItemFields).forEach(field => {
+        if (!field) {
+            return;
+        }
+        field.disabled = !hasSelection;
+    });
+
+    saveSelectedSideItemButton.disabled = !hasSelection;
+    deleteSelectedSideItemButton.disabled = !hasSelection;
+    clearSideItemSelectionButton.disabled = !hasSelection;
+
+    if (!hasSelection) {
+        selectedSideItemFields.name.value = "";
+        selectedSideItemFields.side.value = "left";
+        selectedSideItemFields.color.value = "#7d8994";
+        selectedSideItemFields.notes.value = "";
+        selectedSideItemInfoEl.textContent = "Select a side-compartment item to edit.";
+        return;
+    }
+
+    selectedSideItemFields.name.value = selectedSideItem.name;
+    selectedSideItemFields.side.value = selectedSideItem.side;
+    selectedSideItemFields.color.value = selectedSideItem.customColor || getDefaultSideItemColor(selectedSideItem.type);
+    selectedSideItemFields.notes.value = selectedSideItem.notes || "";
+    selectedSideItemInfoEl.textContent = `Selected: ${selectedSideItem.name} (${selectedSideItem.view} / ${selectedSideItem.side})`;
 }
 

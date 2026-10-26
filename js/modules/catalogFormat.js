@@ -48,8 +48,6 @@ const rackCsvHeaders = [
     "sideItemSide",
     "sideItemType",
     "sideItemName",
-    "sideItemRU",
-    "sideItemPosition",
     "sideItemNotes",
     "sideItemOrder",
     "sideItemCustomColor"
@@ -62,8 +60,6 @@ const libraryCsvHeaders = [
     "ru",
     "typeClass",
     "description",
-    "isSideCompartment",
-    "sideItemType",
     "customColor",
     "defaultDepth",
     "defaultPower"
@@ -197,8 +193,6 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
             sideItemSide: "",
             sideItemType: "",
             sideItemName: "",
-            sideItemRU: "",
-            sideItemPosition: "",
             sideItemNotes: "",
             sideItemOrder: "",
             sideItemCustomColor: ""
@@ -234,8 +228,6 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
             sideItemSide: "",
             sideItemType: "",
             sideItemName: "",
-            sideItemRU: "",
-            sideItemPosition: "",
             sideItemNotes: "",
             sideItemOrder: "",
             sideItemCustomColor: ""
@@ -274,8 +266,6 @@ function rackPayloadToCsv(payload, defaultRackHeightRU = 42) {
                     sideItemSide: side,
                     sideItemType: item.type || "custom-label",
                     sideItemName: item.name || "",
-                    sideItemRU: asNumber(item.ru, 1),
-                    sideItemPosition: asNumber(item.position, 1),
                     sideItemNotes: item.notes || "",
                     sideItemOrder: asNumber(item.order, 1),
                     sideItemCustomColor: item.customColor || ""
@@ -322,8 +312,6 @@ function csvToRackPayload(csvText, defaultRackHeightRU = 42) {
                 side,
                 type: String(record.sideItemType || "custom-label").trim() || "custom-label",
                 name: String(record.sideItemName || "").trim(),
-                ru: asNumber(record.sideItemRU, 1),
-                position: asNumber(record.sideItemPosition, 1),
                 notes: String(record.sideItemNotes || "").trim(),
                 order: asNumber(record.sideItemOrder, sideCompartmentItems[view][side].length + 1),
                 customColor: String(record.sideItemCustomColor || "").trim() || null
@@ -361,8 +349,6 @@ function libraryPayloadToCsv(payload) {
             ru: "",
             typeClass: "",
             description: "",
-            isSideCompartment: "",
-            sideItemType: "",
             customColor: "",
             defaultDepth: "",
             defaultPower: ""
@@ -376,8 +362,6 @@ function libraryPayloadToCsv(payload) {
                 ru: asNumber(item.ru, 1),
                 typeClass: item.typeClass || "default-component",
                 description: item.description || "",
-                isSideCompartment: item.isSideCompartment ? "1" : "0",
-                sideItemType: item.sideItemType || "custom-label",
                 customColor: item.customColor || "",
                 defaultDepth: asNumber(item.defaultDepth, 0),
                 defaultPower: asNumber(item.defaultPower, 0)
@@ -413,8 +397,6 @@ function csvToLibraryPayload(csvText) {
                 ru: asNumber(record.ru, 1),
                 typeClass: String(record.typeClass || "default-component").trim() || "default-component",
                 description: String(record.description || "").trim(),
-                isSideCompartment: String(record.isSideCompartment || "").trim() === "1" || String(record.isSideCompartment || "").trim().toLowerCase() === "true",
-                sideItemType: String(record.sideItemType || "custom-label").trim() || "custom-label",
                 customColor: String(record.customColor || "").trim() || null,
                 defaultDepth: asNumber(record.defaultDepth, 0),
                 defaultPower: asNumber(record.defaultPower, 0)
