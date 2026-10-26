@@ -17,10 +17,8 @@ export function initializeSelectedEditorColorPalette(context) {
         selectedEditorColorPresetsEl,
         selectedEditorFields,
         getSelectedRackComponent,
-        getSelectedSideCompartmentItem,
         getSelectedLibraryItem,
         renderRack,
-        renderSideCompartments,
         renderLibrary,
         renderSelectedEditorPanel,
         syncActiveRackToCatalog,
@@ -45,9 +43,8 @@ export function initializeSelectedEditorColorPalette(context) {
 
         button.addEventListener("click", () => {
             const selectedComponent = getSelectedRackComponent();
-            const selectedSideItem = getSelectedSideCompartmentItem();
             const selectedLibraryItem = getSelectedLibraryItem();
-            if (!selectedComponent && !selectedSideItem && !selectedLibraryItem) {
+            if (!selectedComponent && !selectedLibraryItem) {
                 return;
             }
 
@@ -58,11 +55,6 @@ export function initializeSelectedEditorColorPalette(context) {
                 renderRack();
                 syncActiveRackToCatalog();
                 setNotice(`Updated ${selectedComponent.name} color.`);
-            } else if (selectedSideItem) {
-                selectedSideItem.customColor = preset.color;
-                renderSideCompartments();
-                syncActiveRackToCatalog();
-                setNotice(`Updated ${selectedSideItem.name} color.`);
             } else {
                 selectedLibraryItem.customColor = preset.color;
                 renderLibrary();
@@ -76,9 +68,8 @@ export function initializeSelectedEditorColorPalette(context) {
 
     selectedEditorFields.color.addEventListener("input", event => {
         const selectedComponent = getSelectedRackComponent();
-        const selectedSideItem = getSelectedSideCompartmentItem();
         const selectedLibraryItem = getSelectedLibraryItem();
-        if (!selectedComponent && !selectedSideItem && !selectedLibraryItem) {
+        if (!selectedComponent && !selectedLibraryItem) {
             updatePaletteSelection(event.target.value);
             return;
         }
@@ -92,29 +83,19 @@ export function initializeSelectedEditorColorPalette(context) {
             return;
         }
 
-        if (selectedSideItem) {
-            selectedSideItem.customColor = nextColor;
-            renderSideCompartments();
-            syncActiveRackToCatalog();
-            return;
-        }
-
         selectedLibraryItem.customColor = nextColor;
         renderLibrary();
     });
 
     selectedEditorFields.color.addEventListener("change", () => {
         const selectedComponent = getSelectedRackComponent();
-        const selectedSideItem = getSelectedSideCompartmentItem();
         const selectedLibraryItem = getSelectedLibraryItem();
-        if (!selectedComponent && !selectedSideItem && !selectedLibraryItem) {
+        if (!selectedComponent && !selectedLibraryItem) {
             return;
         }
         setNotice(selectedComponent
             ? `Updated ${selectedComponent.name} color.`
-            : selectedSideItem
-                ? `Updated ${selectedSideItem.name} color.`
-                : `Selected ${selectedLibraryItem.name} color.`);
+            : `Selected ${selectedLibraryItem.name} color.`);
     });
 }
 

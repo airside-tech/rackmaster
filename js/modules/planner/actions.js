@@ -6,7 +6,6 @@ export function createPlannerActions(context) {
         selectedLibraryFields,
         selectedSideItemFields,
         customSideLabelNameInput,
-        customSideLabelRUInput,
         customSideLabelNotesInput,
         customSideLabelColorInput,
         libraryCategorySelect,
@@ -35,19 +34,10 @@ export function createPlannerActions(context) {
         renderSideView,
         renderLibrary,
         renderSelectedEditorPanel,
+        renderSelectedSideItemPanel,
         syncActiveRackToCatalog,
-        persistLibraryCategories = () => {},
-        setNotice,
-        canMutate = () => true
+        setNotice
     } = context;
-
-    function ensureCanMutate() {
-        if (canMutate()) {
-            return true;
-        }
-        setNotice("Rack is read-only because lock is held by another user.", "warning");
-        return false;
-    }
 
     function setFieldHint(inputId, hintId, message) {
         const inputEl = document.getElementById(inputId);
@@ -80,27 +70,7 @@ export function createPlannerActions(context) {
             el.classList.remove("is-invalid");
         });
     }
-
-    function hasSideCompartmentOverlap(view, side, position, ru, ignoreSideItemId = null) {
-        const nextStart = Number(position) || 1;
-        const nextEnd = nextStart + (Math.max(1, Number(ru) || 1) - 1);
-        const items = getSideCompartmentItems(view, side);
-
-        return items.some(item => {
-            if (ignoreSideItemId && item.id === ignoreSideItemId) {
-                return false;
-            }
-
-            const itemStart = Number(item.position) || 1;
-            const itemEnd = itemStart + (Math.max(1, Number(item.ru) || 1) - 1);
-            return nextStart <= itemEnd && itemStart <= nextEnd;
-        });
-    }
-
     function addComponentToRack(componentInput) {
-        if (!ensureCanMutate()) {
-            return false;
-        }
         const component = cloneRackComponent(componentInput);
         if (!component.name) {
             setNotice("A component name is required.");
@@ -133,37 +103,22 @@ export function createPlannerActions(context) {
     }
 
     function addSideCompartmentItem(itemInput, side = "left", view = state.currentView) {
-        if (!ensureCanMutate()) {
-            return false;
-        }
         const normalizedView = view === "rear" ? "rear" : "front";
         const normalizedSide = side === "right" ? "right" : "left";
         const nextItems = getSideCompartmentItems(normalizedView, normalizedSide);
-        const sideRU = Math.max(1, Math.min(Math.floor(Number(itemInput?.ru) || 1), state.rackHeightRU));
-        const maxStartPosition = Math.max(1, state.rackHeightRU - sideRU + 1);
-        const requestedPosition = Math.floor(Number(itemInput?.position) || maxStartPosition);
-        const sidePosition = Math.max(1, Math.min(requestedPosition, maxStartPosition));
         const sideItem = normalizeSideCompartmentItem({
             ...itemInput,
             view: normalizedView,
             side: normalizedSide,
-            ru: sideRU,
-            position: sidePosition,
             order: nextItems.length + 1
-        }, normalizedView, normalizedSide, nextItems.length + 1, state.rackHeightRU);
+        }, normalizedView, normalizedSide, nextItems.length + 1);
 
         if (!sideItem.name) {
             setNotice("A side-item label is required.");
             return false;
         }
 
-        if (hasSideCompartmentOverlap(normalizedView, normalizedSide, sideItem.position, sideItem.ru)) {
-            setNotice(`Cannot place ${sideItem.name} at U${sideItem.position}: overlaps another side item in the ${normalizedView} ${normalizedSide} compartment.`, "warning");
-            return false;
-        }
-
         nextItems.push(sideItem);
-        reorderSideCompartmentItems(normalizedView, normalizedSide);
         state.selectedComponentId = null;
         state.selectedLibraryCategoryId = null;
         state.selectedLibraryItemId = null;
@@ -175,9 +130,6 @@ export function createPlannerActions(context) {
     }
 
     function removeRackComponent(componentId, requireConfirmation = true) {
-        if (!ensureCanMutate()) {
-            return;
-        }
         const component = state.rackComponents.find(entry => entry.id === componentId);
         if (!component) {
             return;
@@ -206,9 +158,6 @@ export function createPlannerActions(context) {
     }
 
     function removeSideCompartmentItem(sideItemId, requireConfirmation = true) {
-        if (!ensureCanMutate()) {
-            return;
-        }
         const selectedSideItem = getAllSideCompartmentItems().find(item => item.id === sideItemId);
         if (!selectedSideItem) {
             return;
@@ -251,6 +200,7 @@ export function createPlannerActions(context) {
         renderSideCompartments();
         renderSideView();
         renderSelectedEditorPanel();
+        renderSelectedSideItemPanel();
         setNotice(`Selected ${component.name} for editing.`);
     }
 
@@ -289,6 +239,7 @@ export function createPlannerActions(context) {
         renderSideCompartments();
         renderSideView();
         renderSelectedEditorPanel();
+        renderSelectedSideItemPanel();
         setNotice(`Selected ${item.name} in the library for editing.`);
     }
 
@@ -307,13 +258,11 @@ export function createPlannerActions(context) {
         renderSideCompartments();
         renderSideView();
         renderSelectedEditorPanel();
+        renderSelectedSideItemPanel();
         setNotice(`Selected ${sideItem.name} for editing.`);
     }
 
     function handleSaveSelectedComponent() {
-        if (!ensureCanMutate()) {
-            return;
-        }
         clearFormHints("selectedEditorForm");
         const selectedComponent = getSelectedRackComponent();
         if (!selectedComponent) {
@@ -392,9 +341,6 @@ export function createPlannerActions(context) {
     }
 
     function handleSaveSelectedLibraryItem() {
-        if (!ensureCanMutate()) {
-            return;
-        }
         clearFormHints("selectedEditorForm");
         const selectedLibraryItem = getSelectedLibraryItem();
         if (!selectedLibraryItem) {
@@ -451,7 +397,6 @@ export function createPlannerActions(context) {
         });
 
         renderAll();
-        persistLibraryCategories(state.libraryCategories);
         syncActiveRackToCatalog();
         if (linkedComponents.length === 0) {
             setNotice(`Updated ${selectedLibraryItem.name} in the library.`);
@@ -489,11 +434,6 @@ export function createPlannerActions(context) {
             return;
         }
 
-        if (getSelectedSideCompartmentItem()) {
-            handleSaveSelectedSideItem();
-            return;
-        }
-
         if (getSelectedLibraryItem()) {
             handleSaveSelectedLibraryItem();
         }
@@ -510,11 +450,6 @@ export function createPlannerActions(context) {
             return;
         }
 
-        if (getSelectedSideCompartmentItem()) {
-            clearSelectedSideItem();
-            return;
-        }
-
         setNotice("Selection cleared.");
     }
 
@@ -526,25 +461,17 @@ export function createPlannerActions(context) {
 
         if (getSelectedLibraryItem()) {
             handleDeleteSelectedLibraryItem();
-            return;
-        }
-
-        if (getSelectedSideCompartmentItem()) {
-            handleDeleteSelectedSideItem();
         }
     }
 
     function clearSelectedSideItem() {
         state.selectedSideItemId = null;
         renderSideCompartments();
-        renderSelectedEditorPanel();
+        renderSelectedSideItemPanel();
         setNotice("Side-item selection cleared.");
     }
 
     function handleSaveSelectedSideItem() {
-        if (!ensureCanMutate()) {
-            return;
-        }
         const selectedSideItem = getSelectedSideCompartmentItem();
         if (!selectedSideItem) {
             return;
@@ -552,19 +479,11 @@ export function createPlannerActions(context) {
 
         const nextName = selectedSideItemFields.name.value.trim();
         const nextSide = selectedSideItemFields.side.value === "right" ? "right" : "left";
-        const nextRU = Math.max(1, Math.min(Math.floor(Number(selectedSideItemFields.ru.value) || 1), state.rackHeightRU));
-        const maxStartPosition = Math.max(1, state.rackHeightRU - nextRU + 1);
-        const nextPosition = Math.max(1, Math.min(Math.floor(Number(selectedSideItemFields.position.value) || selectedSideItem.position || 1), maxStartPosition));
         const nextColor = selectedSideItemFields.color.value || getDefaultSideItemColor(selectedSideItem.type);
         const nextNotes = String(selectedSideItemFields.notes.value || "").trim();
 
         if (!nextName) {
             setNotice("A side-item label is required.");
-            return;
-        }
-
-        if (hasSideCompartmentOverlap(selectedSideItem.view, nextSide, nextPosition, nextRU, selectedSideItem.id)) {
-            setNotice(`Cannot place ${nextName} at U${nextPosition}: overlaps another side item in the ${selectedSideItem.view} ${nextSide} compartment.`, "warning");
             return;
         }
 
@@ -579,12 +498,8 @@ export function createPlannerActions(context) {
         }
 
         selectedSideItem.name = nextName;
-        selectedSideItem.ru = nextRU;
-        selectedSideItem.position = nextPosition;
         selectedSideItem.customColor = nextColor;
         selectedSideItem.notes = nextNotes;
-
-        reorderSideCompartmentItems(selectedSideItem.view, selectedSideItem.side);
 
         renderAll();
         syncActiveRackToCatalog();
@@ -601,11 +516,7 @@ export function createPlannerActions(context) {
     }
 
     function handleAddCustomSideLabel(side) {
-        if (!ensureCanMutate()) {
-            return;
-        }
         const name = customSideLabelNameInput.value.trim();
-        const ru = Math.max(1, Math.min(Math.floor(Number(customSideLabelRUInput.value) || 1), state.rackHeightRU));
         const notes = String(customSideLabelNotesInput.value || "").trim();
         const customColor = customSideLabelColorInput.value || getDefaultSideItemColor("custom-label");
 
@@ -618,7 +529,6 @@ export function createPlannerActions(context) {
         const added = addSideCompartmentItem({
             type: "custom-label",
             name,
-            ru,
             notes,
             customColor
         }, side, state.currentView);
@@ -628,14 +538,10 @@ export function createPlannerActions(context) {
         }
 
         customSideLabelNameInput.value = "";
-        customSideLabelRUInput.value = "1";
         customSideLabelNotesInput.value = "";
     }
 
     function removeLibraryComponent(categoryId, componentId) {
-        if (!ensureCanMutate()) {
-            return;
-        }
         state.libraryCategories = state.libraryCategories
             .map(category => {
                 if (category.id !== categoryId) {
@@ -658,16 +564,12 @@ export function createPlannerActions(context) {
             state.selectedLibraryItemId = null;
         }
 
-        persistLibraryCategories(state.libraryCategories);
         renderLibrary();
         renderSelectedEditorPanel();
         setNotice("Component removed from library.");
     }
 
     function handleAddLibraryComponent() {
-        if (!ensureCanMutate()) {
-            return;
-        }
         clearFormHints("libraryForm");
         const selectedCategoryId = libraryCategorySelect.value;
         const rawNewCategoryName = libraryNewCategoryNameInput.value.trim();
@@ -704,30 +606,23 @@ export function createPlannerActions(context) {
             category = {
                 id: createId("category"),
                 name: categoryName,
-                isSideCompartment: categoryName.toLowerCase() === "side compartment components",
                 expanded: true,
                 items: []
             };
             state.libraryCategories.push(category);
         }
 
-        const isSideCompartmentCategory = Boolean(category.isSideCompartment);
-        const nextTypeClass = isSideCompartmentCategory ? "side-compartment-component" : typeClass;
-
         category.items.push({
             id: createId("library"),
             name: componentName,
             ru,
-            typeClass: nextTypeClass,
+            typeClass,
             description,
             defaultDepth,
             defaultPower,
-            customColor,
-            isSideCompartment: isSideCompartmentCategory,
-            sideItemType: "custom-label"
+            customColor
         });
         category.expanded = true;
-        persistLibraryCategories(state.libraryCategories);
         renderLibrary();
         setNotice(`${componentName} added to ${category.name}.`);
 
@@ -739,9 +634,6 @@ export function createPlannerActions(context) {
     }
 
     function handleIncreaseRackHeight() {
-        if (!ensureCanMutate()) {
-            return;
-        }
         if (state.rackHeightRU >= maximumRackHeightRU) {
             setNotice(`Rack height cannot exceed ${maximumRackHeightRU} RU.`);
             return;
@@ -760,9 +652,6 @@ export function createPlannerActions(context) {
     }
 
     function handleDecreaseRackHeight() {
-        if (!ensureCanMutate()) {
-            return;
-        }
         const nextHeight = state.rackHeightRU - rackUnitHeightRU;
         if (nextHeight < getHighestOccupiedRU(state.rackComponents)) {
             setNotice("Cannot reduce rack height below the highest occupied U position.");
@@ -788,7 +677,7 @@ export function createPlannerActions(context) {
         renderRack();
         renderSideCompartments();
         renderSideView();
-        renderSelectedEditorPanel();
+        renderSelectedSideItemPanel();
         renderStatus();
         syncActiveRackToCatalog();
     }

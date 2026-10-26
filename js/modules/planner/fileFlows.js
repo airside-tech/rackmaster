@@ -27,7 +27,6 @@ export function createPlannerFileFlows(context) {
         loadLibraryInput,
         setNotice,
         renderAll,
-        persistLibraryCategories = () => {},
         syncActiveRackToCatalog,
         cloneRackComponent
     } = context;
@@ -135,7 +134,6 @@ export function createPlannerFileFlows(context) {
             : { payload, preservedIdCount: 0, generatedIdCount: 0 };
 
         state.libraryCategories = createLibraryState(normalizedPayload.payload.categories);
-        persistLibraryCategories(state.libraryCategories);
         state.selectedLibraryCategoryId = null;
         state.selectedLibraryItemId = null;
         renderAll();
@@ -161,7 +159,6 @@ export function createPlannerFileFlows(context) {
             savedAt: new Date().toISOString(),
             categories: state.libraryCategories.map(category => ({
                 name: category.name,
-                isSideCompartment: Boolean(category.isSideCompartment),
                 items: category.items.map(item => ({
                     id: item.id,
                     name: item.name,
@@ -170,9 +167,7 @@ export function createPlannerFileFlows(context) {
                     description: item.description || "",
                     customColor: item.customColor || null,
                     defaultDepth: item.defaultDepth,
-                    defaultPower: item.defaultPower,
-                    isSideCompartment: Boolean(item.isSideCompartment),
-                    sideItemType: item.sideItemType || "custom-label"
+                    defaultPower: item.defaultPower
                 }))
             }))
         };
@@ -244,6 +239,8 @@ export function createPlannerFileFlows(context) {
             name: String(payload.rackProfile?.name || "Main Rack").trim() || "Main Rack",
             tag: String(payload.rackProfile?.tag || "RACK-01").trim() || "RACK-01",
             room: String(payload.rackProfile?.room || "").trim(),
+            tileX: payload.rackProfile?.tileX == null ? "" : String(payload.rackProfile.tileX).trim(),
+            tileY: payload.rackProfile?.tileY == null ? "" : String(payload.rackProfile.tileY).trim(),
             owner: String(payload.rackProfile?.owner || "").trim(),
             powerA: String(payload.rackProfile?.powerA || "").trim(),
             powerB: String(payload.rackProfile?.powerB || "").trim(),
@@ -253,7 +250,7 @@ export function createPlannerFileFlows(context) {
             notes: String(payload.rackProfile?.notes || "").trim()
         };
         state.rackComponents = nextComponents;
-        state.sideCompartmentItems = normalizeSideCompartmentState(payload.sideCompartmentItems, nextRackHeight);
+        state.sideCompartmentItems = normalizeSideCompartmentState(payload.sideCompartmentItems);
         state.selectedComponentId = null;
         state.selectedLibraryCategoryId = null;
         state.selectedLibraryItemId = null;

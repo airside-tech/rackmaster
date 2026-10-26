@@ -1,9 +1,10 @@
 import { openBinaryFileWithPicker, openTextFileWithPicker, readArrayBufferFromInput, readTextFromInput, saveBinaryFile, saveTextFile } from "../fileIO.js";
 import { catalogToCsv, csvToCatalog } from "../catalogFormat.js";
 import { catalogPayloadToXlsxBuffer, xlsxBufferToCatalogPayload } from "../excelInterop.js";
-import { clearCatalogStorage, getCatalogStorageMode, readCatalog, writeCatalog } from "../storage.js";
+import { readCatalog, writeCatalog } from "../storage.js";
 import { createCatalogId } from "../typeUtils.js";
 import { chooseDataFormat } from "../shared/chooseDataFormat.js";
+import { showRoomMapPopup } from "./showRoomMapPopup.js";
 
 function createEmptySideCompartmentState() {
     return {
@@ -185,269 +186,15 @@ export function initIndexPage() {
     const importCatalogInput = document.getElementById("importCatalogInput");
     const clearCatalogButton = document.getElementById("clearCatalogButton");
 
-    const requiredElements = {
-        roomNameInput,
-        buildingInput,
-        floorInput,
-        roomNotesInput,
-        createRoomButton,
-        newRackNameInput,
-        rackRoomSelect,
-        newRackTagInput,
-        newRackHeightInput,
-        newTileXInput,
-        newTileYInput,
-        newRackDepthInput,
-        newRackWidthInput,
-        newPowerInput,
-        newRackNotesInput,
-        newRackPowerAInput,
-        newRackPowerBInput,
-        createRackButton,
-        roomSectionsEl,
-        statusEl,
-        exportCatalogButton,
-        importCatalogButton,
-        importCatalogInput,
-        clearCatalogButton
-    };
-    const missingElementIds = Object.entries(requiredElements)
-        .filter(([, element]) => !element)
-        .map(([name]) => name);
-
-    if (missingElementIds.length > 0) {
-        console.error("RackMaster index initialization aborted. Missing required elements:", missingElementIds.join(", "));
+    if (!roomNameInput || !buildingInput || !floorInput || !roomNotesInput || !createRoomButton || !newRackNameInput || !rackRoomSelect || !newRackTagInput || !newRackHeightInput || !newTileXInput || !newTileYInput || !newRackDepthInput || !newRackWidthInput || !newPowerInput || !newRackNotesInput || !newRackPowerAInput || !newRackPowerBInput || !createRackButton || !roomSectionsEl || !statusEl || !exportCatalogButton || !importCatalogButton || !importCatalogInput || !clearCatalogButton) {
         return;
     }
 
     let catalog = readCatalog();
     normalizeCatalogRackWidths(catalog);
 
-    const loadedRoomCount = catalog.rooms.length;
-    const loadedRackCount = catalog.rooms.reduce((sum, room) => sum + ((room.racks || []).length), 0);
-    console.info(`RackMaster catalog loaded: ${loadedRoomCount} room(s), ${loadedRackCount} rack(s).`);
-
-    const defaultRackSortPreference = {
-        field: "tag",
-        direction: "asc"
-    };
-    const roomRackSortPreferences = new Map();
-
-    function normalizeSortField(value) {
-        return value === "name" ? "name" : "tag";
-    }
-
-    function normalizeSortDirection(value) {
-        return value === "desc" ? "desc" : "asc";
-    }
-
-    function getRackSortPreference(roomId) {
-        const existingPreference = roomRackSortPreferences.get(roomId);
-        if (existingPreference) {
-            return existingPreference;
-        }
-
-        const nextPreference = {
-            field: defaultRackSortPreference.field,
-            direction: defaultRackSortPreference.direction
-        };
-        roomRackSortPreferences.set(roomId, nextPreference);
-        return nextPreference;
-    }
-
-    function normalizeSortValue(value) {
-        return String(value || "").trim().toLowerCase();
-    }
-
-    function compareRackByField(leftRack, rightRack, field) {
-        const leftValue = normalizeSortValue(field === "name" ? leftRack.name : leftRack.tag);
-        const rightValue = normalizeSortValue(field === "name" ? rightRack.name : rightRack.tag);
-
-        if (leftValue < rightValue) {
-            return -1;
-        }
-        if (leftValue > rightValue) {
-            return 1;
-        }
-
-        const leftName = normalizeSortValue(leftRack.name);
-        const rightName = normalizeSortValue(rightRack.name);
-        if (leftName < rightName) {
-            return -1;
-        }
-        if (leftName > rightName) {
-            return 1;
-        }
-
-        const leftTag = normalizeSortValue(leftRack.tag);
-        const rightTag = normalizeSortValue(rightRack.tag);
-        if (leftTag < rightTag) {
-            return -1;
-        }
-        if (leftTag > rightTag) {
-            return 1;
-        }
-
-        return 0;
-    }
-
-    function sortRacksForRoom(racks, roomId) {
-        const preference = getRackSortPreference(roomId);
-        const multiplier = preference.direction === "desc" ? -1 : 1;
-        const field = normalizeSortField(preference.field);
-
-        return racks
-            .slice()
-            .sort((leftRack, rightRack) => compareRackByField(leftRack, rightRack, field) * multiplier);
-    }
-
-    function pruneRoomRackSortPreferences() {
-        const activeRoomIds = new Set((catalog.rooms || []).map(room => room.id));
-        Array.from(roomRackSortPreferences.keys()).forEach(roomId => {
-            if (!activeRoomIds.has(roomId)) {
-                roomRackSortPreferences.delete(roomId);
-            }
-        });
-    }
-
     function setStatus(message) {
         statusEl.textContent = message;
-    }
-
-    function prepareLegacyImportInput(format) {
-        importCatalogInput.dataset.format = format;
-        importCatalogInput.accept = format === "csv"
-            ? ".csv,text/csv"
-            : format === "xlsx"
-                ? ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                : ".json,application/json";
-        importCatalogInput.value = "";
-    }
-
-    function triggerLegacyImportInput(format) {
-        prepareLegacyImportInput(format);
-        importCatalogInput.click();
-    }
-
-    function openImportFormatPicker(onSelectFormat) {
-        const overlay = document.createElement("div");
-        overlay.style.position = "fixed";
-        overlay.style.inset = "0";
-        overlay.style.background = "rgba(0, 0, 0, 0.45)";
-        overlay.style.display = "flex";
-        overlay.style.alignItems = "center";
-        overlay.style.justifyContent = "center";
-        overlay.style.zIndex = "9999";
-
-        const dialog = document.createElement("div");
-        dialog.style.background = "#ffffff";
-        dialog.style.borderRadius = "12px";
-        dialog.style.padding = "18px";
-        dialog.style.minWidth = "280px";
-        dialog.style.maxWidth = "92vw";
-        dialog.style.boxShadow = "0 10px 28px rgba(0,0,0,0.25)";
-
-        const title = document.createElement("h5");
-        title.textContent = "Import format";
-        title.style.margin = "0 0 8px 0";
-
-        const description = document.createElement("p");
-        description.textContent = "Choose a file format:";
-        description.style.margin = "0 0 12px 0";
-
-        const actions = document.createElement("div");
-        actions.style.display = "flex";
-        actions.style.gap = "8px";
-        actions.style.flexWrap = "wrap";
-
-        function closeDialog() {
-            overlay.remove();
-        }
-
-        [
-            { value: "json", label: "JSON" },
-            { value: "csv", label: "CSV" },
-            { value: "xlsx", label: "XLSX" }
-        ].forEach(option => {
-            const button = document.createElement("button");
-            button.type = "button";
-            button.textContent = option.label;
-            button.addEventListener("click", () => {
-                closeDialog();
-                onSelectFormat(option.value);
-            });
-            actions.appendChild(button);
-        });
-
-        const cancelButton = document.createElement("button");
-        cancelButton.type = "button";
-        cancelButton.textContent = "Cancel";
-        cancelButton.addEventListener("click", () => {
-            closeDialog();
-            setStatus("Import canceled.");
-        });
-        actions.appendChild(cancelButton);
-
-        overlay.addEventListener("click", event => {
-            if (event.target === overlay) {
-                closeDialog();
-                setStatus("Import canceled.");
-            }
-        });
-
-        dialog.appendChild(title);
-        dialog.appendChild(description);
-        dialog.appendChild(actions);
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
-    }
-
-    function startImportForFormat(format) {
-        const openFallbackInput = notice => {
-            if (notice) {
-                setStatus(notice);
-            }
-            triggerLegacyImportInput(format);
-        };
-
-        if (window.showOpenFilePicker) {
-            void (async () => {
-                try {
-                    if (format === "xlsx") {
-                        const workbookBuffer = await openBinaryFileWithPicker(format);
-                        if (workbookBuffer === null) {
-                            openFallbackInput("Native file picker unavailable. Using browser file input.");
-                            return;
-                        }
-                        if (workbookBuffer === "") {
-                            setStatus("Import canceled.");
-                            return;
-                        }
-
-                        await importCatalogFromFormat(format, workbookBuffer);
-                        return;
-                    }
-
-                    const rawText = await openTextFileWithPicker(format);
-                    if (rawText === null) {
-                        openFallbackInput("Native file picker unavailable. Using browser file input.");
-                        return;
-                    }
-                    if (rawText === "") {
-                        setStatus("Import canceled.");
-                        return;
-                    }
-
-                    await importCatalogFromFormat(format, rawText);
-                } catch (error) {
-                    console.warn("Native import picker failed. Falling back to file input.", error);
-                    openFallbackInput("Native picker failed. Using browser file input.");
-                }
-            })();
-            return;
-        }
-
-        triggerLegacyImportInput(format);
     }
 
     function formatImportErrorMessage(error) {
@@ -478,7 +225,6 @@ export function initIndexPage() {
 
     function renderRoomSections() {
         roomSectionsEl.innerHTML = "";
-        pruneRoomRackSortPreferences();
 
         if (catalog.rooms.length === 0) {
             roomSectionsEl.innerHTML = '<div class="message-banner">No equipment rooms yet.</div>';
@@ -504,56 +250,6 @@ export function initIndexPage() {
             titleWrap.appendChild(title);
             titleWrap.appendChild(meta);
 
-            const controls = document.createElement("div");
-            controls.className = "room-section__controls";
-
-            const sortPreference = getRackSortPreference(room.id);
-
-            const sortFieldLabel = document.createElement("label");
-            sortFieldLabel.className = "room-section__control";
-            sortFieldLabel.textContent = "Sort by";
-
-            const sortFieldSelect = document.createElement("select");
-            sortFieldSelect.className = "room-section__select";
-            sortFieldSelect.setAttribute("aria-label", `Sort racks in ${room.name} by field`);
-            sortFieldSelect.innerHTML = [
-                '<option value="tag">Rack Tag</option>',
-                '<option value="name">Rack Name</option>'
-            ].join("");
-            sortFieldSelect.value = normalizeSortField(sortPreference.field);
-            sortFieldSelect.addEventListener("change", () => {
-                roomRackSortPreferences.set(room.id, {
-                    ...getRackSortPreference(room.id),
-                    field: normalizeSortField(sortFieldSelect.value)
-                });
-                renderRoomSections();
-            });
-            sortFieldLabel.appendChild(sortFieldSelect);
-
-            const sortDirectionLabel = document.createElement("label");
-            sortDirectionLabel.className = "room-section__control";
-            sortDirectionLabel.textContent = "Order";
-
-            const sortDirectionSelect = document.createElement("select");
-            sortDirectionSelect.className = "room-section__select";
-            sortDirectionSelect.setAttribute("aria-label", `Sort racks in ${room.name} by order`);
-            sortDirectionSelect.innerHTML = [
-                '<option value="asc">Ascending</option>',
-                '<option value="desc">Descending</option>'
-            ].join("");
-            sortDirectionSelect.value = normalizeSortDirection(sortPreference.direction);
-            sortDirectionSelect.addEventListener("change", () => {
-                roomRackSortPreferences.set(room.id, {
-                    ...getRackSortPreference(room.id),
-                    direction: normalizeSortDirection(sortDirectionSelect.value)
-                });
-                renderRoomSections();
-            });
-            sortDirectionLabel.appendChild(sortDirectionSelect);
-
-            controls.appendChild(sortFieldLabel);
-            controls.appendChild(sortDirectionLabel);
-
             const deleteRoomButton = document.createElement("button");
             deleteRoomButton.type = "button";
             deleteRoomButton.className = "danger-button";
@@ -569,27 +265,21 @@ export function initIndexPage() {
                 setStatus(`Deleted room ${room.name}.`);
             });
 
-            const roomActions = document.createElement("div");
-            roomActions.className = "room-section__actions";
-            roomActions.appendChild(controls);
-            roomActions.appendChild(deleteRoomButton);
-
             header.appendChild(titleWrap);
-            header.appendChild(roomActions);
+            header.appendChild(deleteRoomButton);
             section.appendChild(header);
 
             const rackList = document.createElement("div");
             rackList.className = "rack-list";
 
-            const roomRacks = Array.isArray(room.racks) ? room.racks : [];
-            if (roomRacks.length === 0) {
+            const racks = Array.isArray(room.racks) ? room.racks : [];
+            if (racks.length === 0) {
                 const empty = document.createElement("div");
                 empty.className = "room-section__meta";
                 empty.textContent = "No racks in this room yet.";
                 rackList.appendChild(empty);
             } else {
-                const sortedRacks = sortRacksForRoom(roomRacks, room.id);
-                sortedRacks.forEach(rack => {
+                racks.forEach(rack => {
                     const rackItem = document.createElement("div");
                     rackItem.className = "rack-item";
 
@@ -615,9 +305,7 @@ export function initIndexPage() {
                     editButton.type = "button";
                     editButton.textContent = "Edit";
                     editButton.addEventListener("click", () => {
-                        const mode = new URLSearchParams(window.location.search).get("mode");
-                        const modeQuery = mode ? `&mode=${encodeURIComponent(mode)}` : "";
-                        window.location.href = `planner.html?rackId=${encodeURIComponent(rack.id)}${modeQuery}`;
+                        window.location.href = `planner.html?rackId=${encodeURIComponent(rack.id)}`;
                     });
 
                     const deleteRackButton = document.createElement("button");
@@ -629,12 +317,20 @@ export function initIndexPage() {
                             return;
                         }
 
-                        room.racks = roomRacks.filter(entry => entry.id !== rack.id);
+                        room.racks = racks.filter(entry => entry.id !== rack.id);
                         persistAndRender();
                         setStatus(`Deleted rack ${rack.name}.`);
                     });
 
+                    const showMapButton = document.createElement("button");
+                    showMapButton.type = "button";
+                    showMapButton.textContent = "Show in Map";
+                    showMapButton.addEventListener("click", () => {
+                        showRoomMapPopup(room, rack.id);
+                    });
+
                     actions.appendChild(editButton);
+                    actions.appendChild(showMapButton);
                     actions.appendChild(deleteRackButton);
                     rackItem.appendChild(rackInfo);
                     rackItem.appendChild(actions);
@@ -816,9 +512,47 @@ export function initIndexPage() {
         setStatus(saved ? `Catalog exported as ${format.toUpperCase()}.` : "Export canceled.");
     });
 
-    importCatalogButton.addEventListener("click", () => {
-        // Keep format selection button-based and run import from user click callbacks.
-        openImportFormatPicker(startImportForFormat);
+    importCatalogButton.addEventListener("click", async () => {
+        const format = await chooseDataFormat("Import");
+        if (!format) {
+            setStatus("Import canceled.");
+            return;
+        }
+
+        if (window.showOpenFilePicker) {
+            try {
+                if (format === "xlsx") {
+                    const workbookBuffer = await openBinaryFileWithPicker(format);
+                    if (workbookBuffer === "") {
+                        setStatus("Import canceled.");
+                        return;
+                    }
+
+                    await importCatalogFromFormat(format, workbookBuffer);
+                    return;
+                }
+
+                const rawText = await openTextFileWithPicker(format);
+                if (rawText === "") {
+                    setStatus("Import canceled.");
+                    return;
+                }
+
+                await importCatalogFromFormat(format, rawText);
+                return;
+            } catch (error) {
+                setStatus(formatImportErrorMessage(error));
+                return;
+            }
+        }
+
+        importCatalogInput.dataset.format = format;
+        importCatalogInput.accept = format === "csv"
+            ? ".csv,text/csv"
+            : format === "xlsx"
+                ? ".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                : ".json,application/json";
+        importCatalogInput.click();
     });
 
     importCatalogInput.addEventListener("change", async () => {
@@ -837,21 +571,19 @@ export function initIndexPage() {
     });
 
     clearCatalogButton.addEventListener("click", () => {
-        const isApiMode = getCatalogStorageMode() === "api";
-        const confirmMessage = isApiMode
-            ? "Clear all RackMaster catalog data from the shared API store? This affects all users."
-            : "Clear all RackMaster data stored in this browser?";
-        const confirmed = window.confirm(confirmMessage);
+        const confirmed = window.confirm("Clear all RackMaster data stored in this browser?");
         if (!confirmed) {
             return;
         }
 
-        clearCatalogStorage();
+        Object.keys(localStorage)
+            .filter(key => key.startsWith("rackplanner."))
+            .forEach(key => localStorage.removeItem(key));
 
         catalog = { rooms: [] };
         renderRoomSelect();
         renderRoomSections();
-        setStatus(isApiMode ? "Shared RackMaster catalog cleared via API." : "Local RackMaster browser data cleared.");
+        setStatus("Local RackMaster browser data cleared.");
     });
 
     renderRoomSelect();
