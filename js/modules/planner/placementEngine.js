@@ -306,6 +306,21 @@ export function getTotalPowerConsumption(rackComponents) {
     return rackComponents.reduce((sum, component) => sum + (Number(component.power) || 0), 0);
 }
 
+export function getRackPowerW(rackLike) {
+    const rackComponents = Array.isArray(rackLike?.plannerState?.components)
+        ? rackLike.plannerState.components
+        : Array.isArray(rackLike?.components)
+            ? rackLike.components
+            : [];
+
+    if (rackComponents.length > 0) {
+        return getTotalPowerConsumption(rackComponents);
+    }
+
+    const explicitPower = Number(rackLike?.power);
+    return Number.isFinite(explicitPower) ? explicitPower : 0;
+}
+
 export function getComponentRangeLabel(component) {
     const endRU = component.position + component.ru - 1;
     return component.ru > 1 ? `U${component.position}-U${endRU}` : `U${component.position}`;

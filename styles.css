@@ -764,6 +764,36 @@ textarea:focus {
     font-size: 13px;
 }
 
+.room-map-zoom-controls {
+    margin-top: 10px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.room-map-zoom-label {
+    font-size: 12px;
+    color: #4a5d52;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.room-map-zoom-button {
+    min-width: 34px;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.room-map-zoom-select {
+    min-width: 92px;
+}
+
+.room-map-zoom-to-selection {
+    white-space: nowrap;
+}
+
 .room-map-close {
     white-space: nowrap;
 }
@@ -793,6 +823,8 @@ textarea:focus {
 
 .room-map-canvas {
     --room-map-tile-size: 44px;
+    --room-map-rack-name-font-size: 10px;
+    --room-map-rack-tag-font-size: 9px;
     position: relative;
     display: grid;
     width: max-content;
@@ -821,8 +853,8 @@ textarea:focus {
     pointer-events: auto;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    align-items: stretch;
+    justify-content: flex-start;
     gap: 2px;
     font-size: 11px;
     font-weight: 700;
@@ -831,7 +863,7 @@ textarea:focus {
     border-radius: 10px;
     background: linear-gradient(180deg, rgba(137, 197, 171, 0.92) 0%, rgba(98, 165, 136, 0.9) 100%);
     box-shadow: 0 2px 6px rgba(34, 67, 52, 0.22);
-    overflow: hidden;
+    overflow: auto;
     padding: 5px 7px;
     transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
@@ -840,20 +872,23 @@ textarea:focus {
 .room-map-rack-tag {
     display: block;
     max-width: 100%;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     line-height: 1.2;
+    text-align: center;
 }
 
 .room-map-rack-name {
-    font-size: 10px;
+    font-size: var(--room-map-rack-name-font-size);
     font-weight: 600;
     opacity: 0.86;
 }
 
 .room-map-rack-tag {
-    font-size: 12px;
+    font-size: var(--room-map-rack-tag-font-size);
     font-weight: 800;
 }
 
@@ -1479,6 +1514,8 @@ input.is-invalid {
 
     .room-map-canvas {
         --room-map-tile-size: 34px;
+        --room-map-rack-name-font-size: 9px;
+        --room-map-rack-tag-font-size: 8px;
     }
 
     .rack-frame {

@@ -45,6 +45,7 @@
                         </div>
                     </div>
                 </div>
+                <div id="sideCompartmentLibrary" class="side-item-library"></div>
             </div>
 
 
@@ -129,6 +130,8 @@
                     <div id="viewModeBadge" class="view-mode-badge">FRONT SIDE</div>
                 </div>
                 <div id="controls" class="toolbar-row">
+                    <button id="increaseHeight" type="button">Increase Height</button>
+                    <button id="decreaseHeight" type="button">Decrease Height</button>
                     <button id="toggleViewButton" style="transform-origin:72px 18px;translate:0px;">Switch to Rear View</button>
                 </div>
                 <div id="rackInfo"></div>
@@ -197,6 +200,14 @@
                         <div class="field-group">
                             <label class="prop-label">Room / Site</label>
                             <input type="text" id="rackRoomInput" placeholder="Room A / Datacenter 1">
+                        </div>
+                        <div class="field-group">
+                            <label class="prop-label">Tile X</label>
+                            <input type="number" id="rackTileXInput" placeholder="e.g. 4" min="1">
+                        </div>
+                        <div class="field-group">
+                            <label class="prop-label">Tile Y</label>
+                            <input type="number" id="rackTileYInput" placeholder="e.g. 2" min="1">
                         </div>
                         <div class="field-group">
                             <label class="prop-label">Description / Content</label>
@@ -282,6 +293,33 @@
                     <button id="saveSelectedEditor" type="button">Save Changes</button>
                     <button id="deleteSelectedEditor" type="button">Delete</button>
                     <button id="clearSelectedEditor" type="button">Clear</button>
+                </div>
+            </div>
+            <div class="panel-block" id="selectedSideItemPanel">
+                <div class="panel-block__header panel-block__header--stacked">
+                    <div>
+                        <h5>Selected Side Item</h5>
+                    </div>
+                </div>
+                <div id="selectedSideItemInfo" class="message-banner">Select a side-compartment item to edit.</div>
+                <div class="stack-form">
+                    <div class="field-group">
+                        <label class="prop-label">Label</label>
+                        <input type="text" id="selectedSideItemName" placeholder="—">
+                    </div>
+                    <div class="field-group">
+                        <label class="prop-label">Color</label>
+                        <input type="color" id="selectedSideItemColor" value="#7d8994">
+                    </div>
+                    <div class="field-group">
+                        <label class="prop-label">Notes</label>
+                        <textarea id="selectedSideItemNotes" placeholder="Free notes for this side item"></textarea>
+                    </div>
+                </div>
+                <div class="selection-actions">
+                    <button id="saveSelectedSideItem" type="button">Save Side Item</button>
+                    <button id="deleteSelectedSideItem" type="button">Delete</button>
+                    <button id="clearSideItemSelection" type="button">Clear</button>
                 </div>
             </div>
         </aside>

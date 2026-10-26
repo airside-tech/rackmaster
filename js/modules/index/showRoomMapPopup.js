@@ -63,8 +63,42 @@ export function showRoomMapPopup(room, selectedRackId) {
     subtitle.className = "room-map-subtitle";
     subtitle.textContent = `${room.building || "-"} / ${room.floor || "-"} | Tile ${model.tileSizeCm}cm x ${model.tileSizeCm}cm | Row gap ${model.rowSpacingTiles} tiles | Side margin ${model.sideMarginTiles} tiles`;
 
+    const zoomControls = document.createElement("div");
+    zoomControls.className = "room-map-zoom-controls";
+
+    const zoomLabel = document.createElement("span");
+    zoomLabel.className = "room-map-zoom-label";
+    zoomLabel.textContent = "Zoom";
+
+    const zoomOutButton = document.createElement("button");
+    zoomOutButton.type = "button";
+    zoomOutButton.className = "room-map-zoom-button";
+    zoomOutButton.textContent = "-";
+    zoomOutButton.setAttribute("aria-label", "Zoom out");
+
+    const zoomLevelSelect = document.createElement("select");
+    zoomLevelSelect.className = "room-map-zoom-select";
+
+    const zoomInButton = document.createElement("button");
+    zoomInButton.type = "button";
+    zoomInButton.className = "room-map-zoom-button";
+    zoomInButton.textContent = "+";
+    zoomInButton.setAttribute("aria-label", "Zoom in");
+
+    const zoomToSelectionButton = document.createElement("button");
+    zoomToSelectionButton.type = "button";
+    zoomToSelectionButton.className = "room-map-zoom-to-selection";
+    zoomToSelectionButton.textContent = "Zoom To Selection";
+
+    zoomControls.appendChild(zoomLabel);
+    zoomControls.appendChild(zoomOutButton);
+    zoomControls.appendChild(zoomLevelSelect);
+    zoomControls.appendChild(zoomInButton);
+    zoomControls.appendChild(zoomToSelectionButton);
+
     titleWrap.appendChild(title);
     titleWrap.appendChild(subtitle);
+    titleWrap.appendChild(zoomControls);
 
     const closeButton = document.createElement("button");
     closeButton.type = "button";
@@ -208,6 +242,51 @@ export function showRoomMapPopup(room, selectedRackId) {
     closeButton.addEventListener("click", removeDialog);
     document.addEventListener("keydown", handleEscape);
 
+    const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5];
+    const zoomOptionValues = ["fit", ...zoomLevels.map(value => String(value))];
+    let zoomMode = "fit";
+    let currentTileSize = 44;
+    let currentManualScale = 1;
+
+    zoomLevelSelect.innerHTML = [
+        '<option value="fit">Fit</option>',
+        '<option value="0.5">50%</option>',
+        '<option value="0.75">75%</option>',
+        '<option value="1">100%</option>',
+        '<option value="1.25">125%</option>',
+        '<option value="1.5">150%</option>',
+        '<option value="2">200%</option>',
+        '<option value="2.5">250%</option>'
+    ].join("");
+
+    const getBaseTileSize = () => (window.matchMedia("(max-width: 640px)").matches ? 34 : 44);
+    const getZoomBounds = () => ({
+        min: 16,
+        max: window.matchMedia("(max-width: 640px)").matches ? 84 : 108
+    });
+
+    const clampTileSize = tileSize => {
+        const bounds = getZoomBounds();
+        return Math.max(bounds.min, Math.min(bounds.max, tileSize));
+    };
+
+    const setTileSize = tileSize => {
+        currentTileSize = clampTileSize(tileSize);
+        canvas.style.setProperty("--room-map-tile-size", `${currentTileSize}px`);
+
+        const nameFontSize = Math.max(9, Math.min(15, Math.round(currentTileSize * 0.24)));
+        const tagFontSize = Math.max(8, Math.min(13, Math.round(currentTileSize * 0.2)));
+        canvas.style.setProperty("--room-map-rack-name-font-size", `${nameFontSize}px`);
+        canvas.style.setProperty("--room-map-rack-tag-font-size", `${tagFontSize}px`);
+
+        const mapWidth = model.bounds.width * currentTileSize;
+        const mapHeight = model.bounds.height * currentTileSize;
+        const availableWidth = Math.max(0, canvasWrap.clientWidth - 8);
+        const availableHeight = Math.max(0, canvasWrap.clientHeight - 8);
+        const needsScroll = mapWidth > availableWidth || mapHeight > availableHeight;
+        canvasWrap.classList.toggle("is-scrollable", needsScroll);
+    };
+
     const applyAutoFit = () => {
         const availableWidth = Math.max(0, canvasWrap.clientWidth - 8);
         const availableHeight = Math.max(0, canvasWrap.clientHeight - 8);
@@ -215,8 +294,7 @@ export function showRoomMapPopup(room, selectedRackId) {
             return;
         }
 
-        const maxTileSize = window.matchMedia("(max-width: 640px)").matches ? 40 : 56;
-        const minTileSize = 18;
+        const { max: maxTileSize, min: minTileSize } = getZoomBounds();
         const fitByWidth = Math.floor(availableWidth / model.bounds.width);
         const fitByHeight = Math.floor(availableHeight / model.bounds.height);
         const fitTileSize = Math.min(fitByWidth, fitByHeight);
@@ -225,11 +303,121 @@ export function showRoomMapPopup(room, selectedRackId) {
             ? minTileSize
             : Math.max(minTileSize, Math.min(maxTileSize, fitTileSize));
 
-        canvas.style.setProperty("--room-map-tile-size", `${tileSize}px`);
-        canvasWrap.classList.toggle("is-scrollable", isLargeRoom);
+        setTileSize(tileSize);
     };
 
-    const handleResize = () => applyAutoFit();
+    function applyManualScale(scale) {
+        currentManualScale = scale;
+        zoomMode = "manual";
+        setTileSize(getBaseTileSize() * scale);
+        zoomLevelSelect.value = String(scale);
+    }
+
+    function applyFitMode() {
+        zoomMode = "fit";
+        zoomLevelSelect.value = "fit";
+        applyAutoFit();
+    }
+
+    function getRackButtonById(rackId) {
+        return Array.from(racksLayer.querySelectorAll(".room-map-rack"))
+            .find(button => button.dataset.rackId === rackId) || null;
+    }
+
+    function centerRackInView(rackId) {
+        const rackButton = getRackButtonById(rackId);
+        if (!rackButton) {
+            return;
+        }
+
+        const wrapRect = canvasWrap.getBoundingClientRect();
+        const rackRect = rackButton.getBoundingClientRect();
+        const deltaX = (rackRect.left + rackRect.width / 2) - (wrapRect.left + wrapRect.width / 2);
+        const deltaY = (rackRect.top + rackRect.height / 2) - (wrapRect.top + wrapRect.height / 2);
+        canvasWrap.scrollLeft += deltaX;
+        canvasWrap.scrollTop += deltaY;
+    }
+
+    function zoomToSelection() {
+        const targetRack = racksById.get(activeRackId) || null;
+        if (!targetRack) {
+            return;
+        }
+
+        const footprintEntry = model.placedRacks.find(entry => entry.rack.id === activeRackId) || null;
+        const minimumReadableTileSize = 40;
+        if (footprintEntry) {
+            const spanX = Math.max(1, footprintEntry.footprint.spanX);
+            const spanY = Math.max(1, footprintEntry.footprint.spanY);
+            const recommendedTileSize = Math.max(
+                minimumReadableTileSize,
+                Math.ceil(120 / Math.max(spanX, spanY))
+            );
+
+            zoomMode = "manual";
+            currentManualScale = Math.max(zoomLevels[0], Math.min(zoomLevels[zoomLevels.length - 1], recommendedTileSize / getBaseTileSize()));
+            setTileSize(recommendedTileSize);
+
+            const nearestLevel = zoomLevels.reduce((best, value) => {
+                return Math.abs(value - currentManualScale) < Math.abs(best - currentManualScale) ? value : best;
+            }, zoomLevels[0]);
+            zoomLevelSelect.value = String(nearestLevel);
+        }
+
+        requestAnimationFrame(() => {
+            centerRackInView(activeRackId);
+        });
+    }
+
+    zoomLevelSelect.addEventListener("change", () => {
+        const nextValue = zoomLevelSelect.value;
+        if (nextValue === "fit") {
+            applyFitMode();
+            return;
+        }
+
+        const scale = Number(nextValue);
+        if (Number.isFinite(scale)) {
+            applyManualScale(scale);
+        }
+    });
+
+    zoomOutButton.addEventListener("click", () => {
+        const selectedValue = zoomLevelSelect.value;
+        const currentIndex = zoomOptionValues.indexOf(selectedValue);
+        const fallbackIndex = zoomOptionValues.indexOf("1");
+        const startIndex = selectedValue === "fit"
+            ? fallbackIndex
+            : (currentIndex >= 0 ? currentIndex : fallbackIndex);
+        const nextIndex = Math.max(0, startIndex - 1);
+        zoomLevelSelect.value = zoomOptionValues[nextIndex];
+        zoomLevelSelect.dispatchEvent(new Event("change"));
+    });
+
+    zoomInButton.addEventListener("click", () => {
+        const selectedValue = zoomLevelSelect.value;
+        const currentIndex = zoomOptionValues.indexOf(selectedValue);
+        const fallbackIndex = zoomOptionValues.indexOf("1");
+        const startIndex = selectedValue === "fit"
+            ? fallbackIndex
+            : (currentIndex >= 0 ? currentIndex : fallbackIndex);
+        const nextIndex = Math.min(zoomOptionValues.length - 1, startIndex + 1);
+        zoomLevelSelect.value = zoomOptionValues[nextIndex];
+        zoomLevelSelect.dispatchEvent(new Event("change"));
+    });
+
+    zoomToSelectionButton.addEventListener("click", () => {
+        zoomToSelection();
+    });
+
+    const handleResize = () => {
+        if (zoomMode === "fit") {
+            applyAutoFit();
+            return;
+        }
+
+        setTileSize(getBaseTileSize() * currentManualScale);
+    };
     window.addEventListener("resize", handleResize);
 
     const renderSelection = () => {
@@ -266,9 +454,14 @@ export function showRoomMapPopup(room, selectedRackId) {
         openPlannerButton.onclick = () => {
             window.location.href = `planner.html?rackId=${encodeURIComponent(activeRack.id)}`;
         };
+
+        zoomToSelectionButton.disabled = !hasTilePlacement;
     };
 
     renderSelection();
-    requestAnimationFrame(applyAutoFit);
+    requestAnimationFrame(() => {
+        applyFitMode();
+        centerRackInView(activeRackId);
+    });
     closeButton.focus();
 }
