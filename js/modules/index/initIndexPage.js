@@ -192,6 +192,33 @@ export function initIndexPage() {
 
     let catalog = readCatalog();
     normalizeCatalogRackWidths(catalog);
+    const roomRackListViewById = new Map();
+
+    function getRoomRackListView(roomId) {
+        if (!roomRackListViewById.has(roomId)) {
+            roomRackListViewById.set(roomId, {
+                filterName: "",
+                filterTag: "",
+                sortField: "name",
+                sortDirection: "asc"
+            });
+        }
+
+        return roomRackListViewById.get(roomId);
+    }
+
+    function compareRackValues(leftRack, rightRack, sortField, sortDirection) {
+        const leftValue = String(leftRack?.[sortField] || "").trim();
+        const rightValue = String(rightRack?.[sortField] || "").trim();
+        const base = leftValue.localeCompare(rightValue, undefined, { numeric: true, sensitivity: "base" });
+        if (base !== 0) {
+            return sortDirection === "desc" ? -base : base;
+        }
+
+        const leftName = String(leftRack?.name || "").trim();
+        const rightName = String(rightRack?.name || "").trim();
+        return leftName.localeCompare(rightName, undefined, { numeric: true, sensitivity: "base" });
+    }
 
     function setStatus(message) {
         statusEl.textContent = message;
@@ -224,6 +251,16 @@ export function initIndexPage() {
     }
 
     function renderRoomSections() {
+        const activeElement = document.activeElement;
+        const activeControlMeta = activeElement
+            ? {
+                roomId: activeElement.dataset?.roomId || "",
+                controlType: activeElement.dataset?.controlType || "",
+                selectionStart: typeof activeElement.selectionStart === "number" ? activeElement.selectionStart : null,
+                selectionEnd: typeof activeElement.selectionEnd === "number" ? activeElement.selectionEnd : null
+            }
+            : null;
+
         roomSectionsEl.innerHTML = "";
 
         if (catalog.rooms.length === 0) {
@@ -232,6 +269,7 @@ export function initIndexPage() {
         }
 
         catalog.rooms.forEach(room => {
+            const listView = getRoomRackListView(room.id);
             const section = document.createElement("article");
             section.className = "room-section";
 
@@ -250,6 +288,58 @@ export function initIndexPage() {
             titleWrap.appendChild(title);
             titleWrap.appendChild(meta);
 
+            const controls = document.createElement("div");
+            controls.className = "room-section__tools";
+
+            const filterNameInput = document.createElement("input");
+            filterNameInput.type = "text";
+            filterNameInput.className = "room-section__control-input";
+            filterNameInput.placeholder = "Filter by rack name";
+            filterNameInput.value = listView.filterName;
+            filterNameInput.dataset.roomId = room.id;
+            filterNameInput.dataset.controlType = "filter-name";
+
+            const filterTagInput = document.createElement("input");
+            filterTagInput.type = "text";
+            filterTagInput.className = "room-section__control-input";
+            filterTagInput.placeholder = "Filter by rack tag";
+            filterTagInput.value = listView.filterTag;
+            filterTagInput.dataset.roomId = room.id;
+            filterTagInput.dataset.controlType = "filter-tag";
+
+            const sortSelect = document.createElement("select");
+            sortSelect.className = "room-section__control-select";
+            sortSelect.dataset.roomId = room.id;
+            sortSelect.dataset.controlType = "sort";
+            sortSelect.innerHTML = [
+                '<option value="name:asc">Sort: Name (A-Z)</option>',
+                '<option value="name:desc">Sort: Name (Z-A)</option>',
+                '<option value="tag:asc">Sort: Tag (A-Z)</option>',
+                '<option value="tag:desc">Sort: Tag (Z-A)</option>'
+            ].join("");
+            sortSelect.value = `${listView.sortField}:${listView.sortDirection}`;
+
+            filterNameInput.addEventListener("input", () => {
+                listView.filterName = filterNameInput.value;
+                renderRoomSections();
+            });
+
+            filterTagInput.addEventListener("input", () => {
+                listView.filterTag = filterTagInput.value;
+                renderRoomSections();
+            });
+
+            sortSelect.addEventListener("change", () => {
+                const [sortField, sortDirection] = sortSelect.value.split(":");
+                listView.sortField = sortField === "tag" ? "tag" : "name";
+                listView.sortDirection = sortDirection === "desc" ? "desc" : "asc";
+                renderRoomSections();
+            });
+
+            controls.appendChild(filterNameInput);
+            controls.appendChild(filterTagInput);
+            controls.appendChild(sortSelect);
+
             const deleteRoomButton = document.createElement("button");
             deleteRoomButton.type = "button";
             deleteRoomButton.className = "danger-button";
@@ -266,6 +356,7 @@ export function initIndexPage() {
             });
 
             header.appendChild(titleWrap);
+            header.appendChild(controls);
             header.appendChild(deleteRoomButton);
             section.appendChild(header);
 
@@ -273,13 +364,30 @@ export function initIndexPage() {
             rackList.className = "rack-list";
 
             const racks = Array.isArray(room.racks) ? room.racks : [];
+            const normalizedNameFilter = String(listView.filterName || "").trim().toLowerCase();
+            const normalizedTagFilter = String(listView.filterTag || "").trim().toLowerCase();
+            const visibleRacks = racks
+                .filter(rack => {
+                    const rackName = String(rack?.name || "").toLowerCase();
+                    const rackTag = String(rack?.tag || "").toLowerCase();
+                    const nameMatches = !normalizedNameFilter || rackName.includes(normalizedNameFilter);
+                    const tagMatches = !normalizedTagFilter || rackTag.includes(normalizedTagFilter);
+                    return nameMatches && tagMatches;
+                })
+                .sort((left, right) => compareRackValues(left, right, listView.sortField, listView.sortDirection));
+
             if (racks.length === 0) {
                 const empty = document.createElement("div");
                 empty.className = "room-section__meta";
                 empty.textContent = "No racks in this room yet.";
                 rackList.appendChild(empty);
+            } else if (visibleRacks.length === 0) {
+                const empty = document.createElement("div");
+                empty.className = "room-section__meta";
+                empty.textContent = "No racks match the active name/tag filters.";
+                rackList.appendChild(empty);
             } else {
-                racks.forEach(rack => {
+                visibleRacks.forEach(rack => {
                     const rackItem = document.createElement("div");
                     rackItem.className = "rack-item";
 
@@ -341,6 +449,21 @@ export function initIndexPage() {
             section.appendChild(rackList);
             roomSectionsEl.appendChild(section);
         });
+
+        if (activeControlMeta?.roomId && activeControlMeta.controlType) {
+            const selector = `[data-room-id="${activeControlMeta.roomId}"][data-control-type="${activeControlMeta.controlType}"]`;
+            const nextActiveControl = roomSectionsEl.querySelector(selector);
+            if (nextActiveControl) {
+                nextActiveControl.focus();
+                if (
+                    typeof activeControlMeta.selectionStart === "number"
+                    && typeof activeControlMeta.selectionEnd === "number"
+                    && typeof nextActiveControl.setSelectionRange === "function"
+                ) {
+                    nextActiveControl.setSelectionRange(activeControlMeta.selectionStart, activeControlMeta.selectionEnd);
+                }
+            }
+        }
     }
 
     async function importCatalogFromFormat(format, source) {

@@ -682,6 +682,31 @@ textarea:focus {
     margin-bottom: 10px;
 }
 
+.room-section__tools {
+    display: grid;
+    grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(170px, auto);
+    gap: 8px;
+    flex: 1;
+    max-width: 640px;
+}
+
+.room-section__control-input,
+.room-section__control-select {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid var(--panel-border);
+    font-size: 13px;
+    background: #fff;
+    color: var(--ink);
+}
+
+.room-section__control-input:focus,
+.room-section__control-select:focus {
+    outline: 2px solid rgba(31, 106, 82, 0.18);
+    border-color: var(--accent);
+}
+
 .room-section__title {
     margin: 0;
     font-size: 16px;
@@ -788,6 +813,7 @@ textarea:focus {
 
 .room-map-zoom-select {
     min-width: 92px;
+    width: auto;
 }
 
 .room-map-zoom-to-selection {
@@ -810,6 +836,7 @@ textarea:focus {
     display: flex;
     align-items: flex-start;
     justify-content: center;
+    touch-action: none;
     padding: 16px;
     background:
         radial-gradient(circle at 12% 16%, rgba(218, 227, 214, 0.55) 0%, rgba(218, 227, 214, 0) 55%),
@@ -819,12 +846,18 @@ textarea:focus {
 .room-map-canvas-wrap.is-scrollable {
     overflow: auto;
     justify-content: flex-start;
+    cursor: grab;
+}
+
+.room-map-canvas-wrap.is-scrollable.is-panning {
+    cursor: grabbing;
+    user-select: none;
 }
 
 .room-map-canvas {
-    --room-map-tile-size: 44px;
-    --room-map-rack-name-font-size: 10px;
-    --room-map-rack-tag-font-size: 9px;
+    --room-map-tile-size: 48px;
+    --room-map-rack-name-font-size: 12px;
+    --room-map-rack-tag-font-size: 10px;
     position: relative;
     display: grid;
     width: max-content;
@@ -920,7 +953,7 @@ textarea:focus {
 
 .room-map-details-title {
     margin: 0;
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
 }
 
@@ -939,7 +972,7 @@ textarea:focus {
 
 .room-map-detail-label {
     color: #637168;
-    font-size: 11px;
+    font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 700;
@@ -947,7 +980,7 @@ textarea:focus {
 
 .room-map-detail-value {
     color: #1f3126;
-    font-size: 13px;
+    font-size: 14px;
     word-break: break-word;
 }
 
@@ -1493,6 +1526,16 @@ input.is-invalid {
         align-items: flex-start;
     }
 
+    .room-section__header {
+        flex-direction: column;
+    }
+
+    .room-section__tools {
+        width: 100%;
+        max-width: none;
+        grid-template-columns: 1fr;
+    }
+
     .rack-views-row {
         flex-direction: column;
         align-items: center;
@@ -1513,9 +1556,9 @@ input.is-invalid {
     }
 
     .room-map-canvas {
-        --room-map-tile-size: 34px;
-        --room-map-rack-name-font-size: 9px;
-        --room-map-rack-tag-font-size: 8px;
+        --room-map-tile-size: 38px;
+        --room-map-rack-name-font-size: 10px;
+        --room-map-rack-tag-font-size: 9px;
     }
 
     .rack-frame {

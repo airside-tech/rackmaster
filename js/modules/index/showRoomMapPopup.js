@@ -36,6 +36,7 @@ export function showRoomMapPopup(room, selectedRackId) {
     let activeRackId = racksById.has(selectedRackId)
         ? selectedRackId
         : roomRacks[0]?.id || null;
+    let suppressRackClickUntil = 0;
 
     const overlapRackIds = new Set();
     model.overlapWarnings.forEach(warning => {
@@ -202,7 +203,12 @@ export function showRoomMapPopup(room, selectedRackId) {
         block.appendChild(rackNameEl);
         block.appendChild(rackTagEl);
         block.title = `${rackLabel(rack)} | Tile ${tileCoordinateLabel(rack.tileX)}, ${tileCoordinateLabel(rack.tileY)}`;
-        block.addEventListener("click", () => {
+        block.addEventListener("click", event => {
+            if (Date.now() < suppressRackClickUntil) {
+                event.preventDefault();
+                return;
+            }
+
             activeRackId = rack.id;
             renderSelection();
         });
@@ -221,7 +227,76 @@ export function showRoomMapPopup(room, selectedRackId) {
     overlay.appendChild(dialog);
     document.body.appendChild(overlay);
 
+    const panThresholdPx = 6;
+    let panPointerId = null;
+    let panStartX = 0;
+    let panStartY = 0;
+    let panStartScrollLeft = 0;
+    let panStartScrollTop = 0;
+    let hasPanned = false;
+
+    const handlePanPointerMove = event => {
+        if (event.pointerId !== panPointerId) {
+            return;
+        }
+
+        const deltaX = event.clientX - panStartX;
+        const deltaY = event.clientY - panStartY;
+        const movedDistance = Math.hypot(deltaX, deltaY);
+
+        if (movedDistance < panThresholdPx) {
+            return;
+        }
+
+        hasPanned = true;
+        canvasWrap.classList.add("is-panning");
+        canvasWrap.scrollLeft = panStartScrollLeft - deltaX;
+        canvasWrap.scrollTop = panStartScrollTop - deltaY;
+        event.preventDefault();
+    };
+
+    const clearPanInteraction = () => {
+        panPointerId = null;
+        canvasWrap.classList.remove("is-panning");
+        window.removeEventListener("pointermove", handlePanPointerMove);
+        window.removeEventListener("pointerup", handlePanPointerUp);
+        window.removeEventListener("pointercancel", handlePanPointerUp);
+    };
+
+    const handlePanPointerUp = event => {
+        if (event.pointerId !== panPointerId) {
+            return;
+        }
+
+        if (hasPanned) {
+            suppressRackClickUntil = Date.now() + 120;
+        }
+
+        clearPanInteraction();
+    };
+
+    const handlePanPointerDown = event => {
+        if (event.button != null && event.button !== 0 && event.pointerType !== "touch") {
+            return;
+        }
+
+        panPointerId = event.pointerId;
+        panStartX = event.clientX;
+        panStartY = event.clientY;
+        panStartScrollLeft = canvasWrap.scrollLeft;
+        panStartScrollTop = canvasWrap.scrollTop;
+        hasPanned = false;
+
+        window.addEventListener("pointermove", handlePanPointerMove, { passive: false });
+        window.addEventListener("pointerup", handlePanPointerUp);
+        window.addEventListener("pointercancel", handlePanPointerUp);
+    };
+
+    canvasWrap.addEventListener("pointerdown", handlePanPointerDown);
+
     const removeDialog = () => {
+        clearPanInteraction();
+        canvasWrap.removeEventListener("pointerdown", handlePanPointerDown);
         document.removeEventListener("keydown", handleEscape);
         window.removeEventListener("resize", handleResize);
         overlay.remove();
@@ -245,7 +320,7 @@ export function showRoomMapPopup(room, selectedRackId) {
     const zoomLevels = [0.5, 0.75, 1, 1.25, 1.5, 2, 2.5];
     const zoomOptionValues = ["fit", ...zoomLevels.map(value => String(value))];
     let zoomMode = "fit";
-    let currentTileSize = 44;
+    let currentTileSize = 48;
     let currentManualScale = 1;
 
     zoomLevelSelect.innerHTML = [
@@ -259,10 +334,10 @@ export function showRoomMapPopup(room, selectedRackId) {
         '<option value="2.5">250%</option>'
     ].join("");
 
-    const getBaseTileSize = () => (window.matchMedia("(max-width: 640px)").matches ? 34 : 44);
+    const getBaseTileSize = () => (window.matchMedia("(max-width: 640px)").matches ? 38 : 48);
     const getZoomBounds = () => ({
-        min: 16,
-        max: window.matchMedia("(max-width: 640px)").matches ? 84 : 108
+        min: 20,
+        max: window.matchMedia("(max-width: 640px)").matches ? 92 : 120
     });
 
     const clampTileSize = tileSize => {
@@ -274,8 +349,8 @@ export function showRoomMapPopup(room, selectedRackId) {
         currentTileSize = clampTileSize(tileSize);
         canvas.style.setProperty("--room-map-tile-size", `${currentTileSize}px`);
 
-        const nameFontSize = Math.max(9, Math.min(15, Math.round(currentTileSize * 0.24)));
-        const tagFontSize = Math.max(8, Math.min(13, Math.round(currentTileSize * 0.2)));
+        const nameFontSize = Math.max(10, Math.min(17, Math.round(currentTileSize * 0.27)));
+        const tagFontSize = Math.max(9, Math.min(15, Math.round(currentTileSize * 0.23)));
         canvas.style.setProperty("--room-map-rack-name-font-size", `${nameFontSize}px`);
         canvas.style.setProperty("--room-map-rack-tag-font-size", `${tagFontSize}px`);
 
@@ -345,7 +420,7 @@ export function showRoomMapPopup(room, selectedRackId) {
         }
 
         const footprintEntry = model.placedRacks.find(entry => entry.rack.id === activeRackId) || null;
-        const minimumReadableTileSize = 40;
+        const minimumReadableTileSize = 46;
         if (footprintEntry) {
             const spanX = Math.max(1, footprintEntry.footprint.spanX);
             const spanY = Math.max(1, footprintEntry.footprint.spanY);
