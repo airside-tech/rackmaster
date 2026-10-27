@@ -734,6 +734,19 @@ textarea:focus {
     gap: 12px;
 }
 
+.rack-item__info {
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 760px;
+}
+
+.rack-item__info .room-section__meta {
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .rack-item__info span {
     color: var(--muted);
     font-size: 12px;
@@ -742,6 +755,11 @@ textarea:focus {
 .rack-item__actions {
     display: flex;
     gap: 8px;
+    flex: 0 0 auto;
+}
+
+.rack-item__actions button {
+    min-width: 92px;
 }
 
 .room-map-overlay {
