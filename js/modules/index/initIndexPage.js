@@ -5,6 +5,7 @@ import { readCatalog, writeCatalog } from "../storage.js";
 import { createCatalogId } from "../typeUtils.js";
 import { chooseDataFormat } from "../shared/chooseDataFormat.js";
 import { showRoomMapPopup } from "./showRoomMapPopup.js";
+import { exportRoomMapPdf } from "./exportRoomMapPdf.js";
 
 function createEmptySideCompartmentState() {
     return {
@@ -341,6 +342,21 @@ export function initIndexPage() {
             controls.appendChild(sortSelect);
 
             const deleteRoomButton = document.createElement("button");
+            const roomHeaderActions = document.createElement("div");
+            roomHeaderActions.className = "room-section__header-actions";
+
+            const exportRoomMapButton = document.createElement("button");
+            exportRoomMapButton.type = "button";
+            exportRoomMapButton.textContent = "Export Map";
+            exportRoomMapButton.addEventListener("click", () => {
+                try {
+                    exportRoomMapPdf(room);
+                    setStatus(`Exported map for room ${room.name}.`);
+                } catch (error) {
+                    setStatus(`Could not export room map: ${error?.message || "Unknown error"}`);
+                }
+            });
+
             deleteRoomButton.type = "button";
             deleteRoomButton.className = "danger-button";
             deleteRoomButton.textContent = "Delete Room";
@@ -357,7 +373,9 @@ export function initIndexPage() {
 
             header.appendChild(titleWrap);
             header.appendChild(controls);
-            header.appendChild(deleteRoomButton);
+            roomHeaderActions.appendChild(exportRoomMapButton);
+            roomHeaderActions.appendChild(deleteRoomButton);
+            header.appendChild(roomHeaderActions);
             section.appendChild(header);
 
             const rackList = document.createElement("div");

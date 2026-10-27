@@ -682,6 +682,13 @@ textarea:focus {
     margin-bottom: 10px;
 }
 
+.room-section__header-actions {
+    display: flex;
+    gap: 8px;
+    flex: 0 0 auto;
+    align-items: flex-start;
+}
+
 .room-section__tools {
     display: grid;
     grid-template-columns: minmax(140px, 1fr) minmax(140px, 1fr) minmax(170px, auto);
@@ -1546,6 +1553,11 @@ input.is-invalid {
 
     .room-section__header {
         flex-direction: column;
+    }
+
+    .room-section__header-actions {
+        width: 100%;
+        justify-content: flex-end;
     }
 
     .room-section__tools {
